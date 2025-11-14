@@ -16,3 +16,4 @@ Whitening transforms for EEG covariance matrices (trials × channels).
 ```r
 # install.packages("devtools")
 devtools::install_github("YimingShen/eegwhiten")
+
