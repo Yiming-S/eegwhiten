@@ -1,0 +1,18 @@
+Package: eegwhiten
+Type: Package
+Title: Whitening Transforms for EEG Covariance Matrices
+Version: 0.1.0
+Author: Yiming Shen
+Maintainer: Yiming Shen <yiming.shen001@umb.edu>
+Description: 
+    Whitening transforms (PCA, PCA on the correlation matrix, ZCA, 
+    ZCA on the correlation matrix, SVD and Cholesky) with a simple 
+    fit/transform API for EEG data. Rows are trials/epochs, columns 
+    are channels or features. Provides model objects for reusing 
+    whitening parameters across datasets, inverse transforms, and 
+    basic diagnostics.
+License: MIT
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 3.6.0)
+RoxygenNote: 7.3.3
