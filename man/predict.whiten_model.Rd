@@ -12,10 +12,10 @@
 \item{newdata}{Numeric matrix with the same number of columns
 as the data used to fit the model.}
 
-\item{...}{Unused, for S3 generic compatibility.}
+\item{...}{Unused.}
 }
 \value{
-Whitened data matrix.
+Whitened data matrix (possibly with reduced dimensions).
 }
 \description{
 Apply a whitening model to new EEG data

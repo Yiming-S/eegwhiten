@@ -6,14 +6,16 @@
 \usage{
 whiten_fit(
   Sigma,
-  method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky")
+  method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky"),
+  n_comp = NULL
 )
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}
 
-\item{method}{Whitening method; one of \code{"SVD"}, \code{"ZCA"},
-\code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.}
+\item{method}{Whitening method.}
+
+\item{n_comp}{Integer (optional); Number of components to keep (for PCA/SVD).}
 }
 \value{
 Whitening matrix \code{W}.
@@ -21,5 +23,5 @@ Whitening matrix \code{W}.
 \description{
 Compute a whitening matrix \code{W} from a symmetric
 positive-definite covariance matrix using one of the
-implemented methods (PCA, ZCA, SVD, Cholesky, etc.).
+implemented methods.
 }

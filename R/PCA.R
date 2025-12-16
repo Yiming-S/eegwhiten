@@ -1,26 +1,22 @@
+
 ############################################################
-# PCA-based whitening on the covariance matrix
+# FILENAME: PCA.R
+# DESCRIPTION: PCA-based whitening
+# UPDATES: Added n_comp support
 ############################################################
 
 #' PCA-based whitening on the covariance matrix
 #'
-#' Perform whitening based on the eigen-decomposition of a
-#' symmetric positive-definite covariance matrix. This is a
-#' standard PCA whitening transform where components correspond
-#' to eigenvectors of \code{Sigma}.
+#' Perform whitening based on the eigen-decomposition.
+#' Supports dimensionality reduction via \code{n_comp}.
 #'
 #' @param Sigma Symmetric positive-definite covariance matrix.
+#' @param n_comp Integer; number of components to keep.
 #' @param returnW Logical; if TRUE, return the whitening matrix \code{W}.
-#' @param PhiPsi Logical; if TRUE, return factor loadings \code{Phi}
-#'   and standardized loadings \code{Psi}.
-#'
-#' @return A list with some of the elements:
-#'   \item{W}{Whitening matrix (if \code{returnW = TRUE}).}
-#'   \item{Phi}{Factor loadings in the original EEG feature space.}
-#'   \item{Psi}{Standardized loadings.}
+#' @param PhiPsi Logical; if TRUE, return factor loadings.
 #'
 #' @export
-PCA <- function(Sigma, returnW = TRUE, PhiPsi = TRUE) {
+PCA <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
   .check_symmetric_pd(Sigma, require_pd = TRUE)
   
   v <- diag(Sigma)
@@ -32,28 +28,51 @@ PCA <- function(Sigma, returnW = TRUE, PhiPsi = TRUE) {
   U      <- eSigma$vectors
   lambda <- eSigma$values
   
-  # Fix sign ambiguity in eigenvectors by making diagonal of U positive
-  U <- sweep(U, 2, sign(diag(U)), "*")
+  # --- Dimensionality Reduction Logic ---
+  d <- length(lambda)
+  if (!is.null(n_comp)) {
+    if (n_comp < 1 || n_comp > d) stop("n_comp out of range.")
+    k <- n_comp
+  } else {
+    k <- d
+  }
+  
+  # Truncate
+  U      <- U[, 1:k, drop = FALSE]
+  lambda <- lambda[1:k]
+  
+  # Check positive eigenvalues after truncation (usually handled by check_pd but safe to check)
+  if (any(lambda <= 0)) stop("Non-positive eigenvalues detected in PCA.")
+  
+  # Fix sign ambiguity
+  U <- sweep(U, 2, sign(colSums(U)), "*")
   
   result <- list()
   
   if (returnW) {
-    # W: components x original features
-    W <- tcrossprod(diag(1 / sqrt(lambda)), U)
+    # W: [k x d]. 
+    # Transforms X (n x d) -> Z (n x k) via Z = X %*% t(W)
+    # W = D^-1/2 * U^T
+    W <- tcrossprod(diag(1 / sqrt(lambda), nrow = k, ncol = k), U)
+    
     result$W <- .set_matrix_attr(
       W,
-      row_names = paste0("L", seq_len(ncol(Sigma))),
+      row_names = paste0("PC", seq_len(k)),
       col_names = colnames(Sigma),
       method    = "PCA"
     )
   }
   
   if (PhiPsi) {
-    Phi <- U %*% diag(sqrt(lambda))         # loadings
-    Psi <- diag(1 / sqrt(v)) %*% Phi        # standardized loadings
+    # Phi: Loadings in original space [d x k]
+    Phi <- U %*% diag(sqrt(lambda), nrow = k, ncol = k)
+    
+    # Psi: Standardized loadings [d x k]
+    # Psi_ij = Phi_ij / sigma_i
+    Psi <- diag(1 / sqrt(v)) %*% Phi
     
     row_names <- colnames(Sigma)
-    col_names <- paste0("L", seq_len(ncol(Sigma)))
+    col_names <- paste0("PC", seq_len(k))
     
     result$Phi <- .set_matrix_attr(Phi, row_names, col_names, "PCA")
     result$Psi <- .set_matrix_attr(Psi, row_names, col_names, "PCA")

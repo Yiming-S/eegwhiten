@@ -4,7 +4,7 @@
 \alias{SVD}
 \title{SVD-based whitening on the covariance matrix}
 \usage{
-SVD(Sigma, returnW = TRUE, PhiPsi = TRUE)
+SVD(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE)
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}

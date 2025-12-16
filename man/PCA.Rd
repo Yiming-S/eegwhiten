@@ -4,25 +4,18 @@
 \alias{PCA}
 \title{PCA-based whitening on the covariance matrix}
 \usage{
-PCA(Sigma, returnW = TRUE, PhiPsi = TRUE)
+PCA(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE)
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}
 
+\item{n_comp}{Integer; number of components to keep.}
+
 \item{returnW}{Logical; if TRUE, return the whitening matrix \code{W}.}
 
-\item{PhiPsi}{Logical; if TRUE, return factor loadings \code{Phi}
-and standardized loadings \code{Psi}.}
-}
-\value{
-A list with some of the elements:
-  \item{W}{Whitening matrix (if \code{returnW = TRUE}).}
-  \item{Phi}{Factor loadings in the original EEG feature space.}
-  \item{Psi}{Standardized loadings.}
+\item{PhiPsi}{Logical; if TRUE, return factor loadings.}
 }
 \description{
-Perform whitening based on the eigen-decomposition of a
-symmetric positive-definite covariance matrix. This is a
-standard PCA whitening transform where components correspond
-to eigenvectors of \code{Sigma}.
+Perform whitening based on the eigen-decomposition.
+Supports dimensionality reduction via \code{n_comp}.
 }

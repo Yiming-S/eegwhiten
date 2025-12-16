@@ -7,7 +7,9 @@
 whiten_model(
   X,
   center = TRUE,
-  method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky")
+  method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky"),
+  n_comp = NULL,
+  lambda = 0
 )
 }
 \arguments{
@@ -18,24 +20,21 @@ computing the covariance.}
 
 \item{method}{Whitening method; one of \code{"SVD"}, \code{"ZCA"},
 \code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.}
+
+\item{n_comp}{Integer (optional); Number of components to keep.
+Only applicable for "PCA", "PCA-cor", and "SVD".}
+
+\item{lambda}{Numeric (0 to 1); Regularization parameter for covariance shrinkage.
+0 = No regularization (Empirical covariance).
+1 = Full shrinkage to target (scaled Identity).
+Values between 0 and 1 mix the two. Useful for high-dimensional/low-sample EEG data.}
 }
 \value{
-An object of class \code{"whiten_model"} containing:
-  \item{W}{Whitening matrix.}
-  \item{center}{Centering vector.}
-  \item{method}{Method name.}
+An object of class \code{"whiten_model"}.
 }
 \description{
 The input matrix \code{X} is assumed to have trials/epochs in rows
-and channels or features in columns. The function estimates
-a centering vector and a whitening matrix based on the empirical
-covariance of the centered data.
-}
-\examples{
-set.seed(1)
-X <- matrix(rnorm(200 * 16), 200, 16)
-colnames(X) <- paste0("Ch", seq_len(16))
-wm <- whiten_model(X, center = TRUE, method = "ZCA")
-Xw <- predict(wm, X)
-
+and channels or features in columns. This function estimates
+a centering vector and a whitening matrix, optionally using
+regularization (shrinkage) and dimensionality reduction.
 }

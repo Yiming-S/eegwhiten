@@ -15,7 +15,5 @@ unwhiten(Z, model)
 Approximate reconstruction of the original data matrix.
 }
 \description{
-Given whitened data \code{Z} and a fitted \code{whiten_model},
-approximately reconstruct the original-space features. This can
-be used for interpretation or sanity checks.
+Inverse transform from whitened space back to original EEG space
 }

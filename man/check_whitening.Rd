@@ -10,15 +10,8 @@ check_whitening(Z)
 \item{Z}{Whitened data matrix.}
 }
 \value{
-A list containing:
-  \item{diag_range}{Range of diagonal elements of \code{cov(Z)}.}
-  \item{diag_mean}{Mean of diagonal elements of \code{cov(Z)}.}
-  \item{offdiag_frob}{Frobenius norm of off-diagonal entries of \code{cov(Z)}.}
-  \item{dim}{Number of columns.}
-  \item{cov_matrix}{The covariance matrix \code{cov(Z)}.}
+List of diagnostics.
 }
 \description{
-Compute basic diagnostics on the covariance of whitened data,
-such as the range of diagonal elements and the Frobenius norm
-of off-diagonal elements.
+Diagnostic check for whitening quality
 }

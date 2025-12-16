@@ -4,10 +4,12 @@
 \alias{PCA_cor}
 \title{PCA-based whitening on the correlation matrix}
 \usage{
-PCA_cor(Sigma, returnW = TRUE, PhiPsi = TRUE)
+PCA_cor(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE)
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}
+
+\item{n_comp}{Integer; number of components to keep. If NULL, keeps all.}
 
 \item{returnW}{Logical; if TRUE, return the whitening matrix \code{W}.}
 
