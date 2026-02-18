@@ -13,9 +13,13 @@
 #'
 #' @param Sigma Symmetric positive-definite covariance matrix.
 #' @param n_comp Integer; number of components to keep. If NULL, keeps all.
+#' @param sign_ref Optional reference vectors used to stabilize component
+#'   signs across runs.
 #' @param returnW Logical; if TRUE, return the whitening matrix \code{W}.
 #' @param PhiPsi Logical; if TRUE, return factor loadings \code{Phi}
 #'   and standardized loadings \code{Psi}.
+#' @param return_decomp Logical; if TRUE, return decomposition terms used for
+#'   fast inverse transformation.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix based on the correlation structure.}
@@ -23,7 +27,12 @@
 #'   \item{Psi}{Standardized loadings.}
 #'
 #' @export
-PCA_cor <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
+PCA_cor <- function(Sigma,
+                    n_comp = NULL,
+                    sign_ref = NULL,
+                    returnW = TRUE,
+                    PhiPsi = TRUE,
+                    return_decomp = FALSE) {
   .check_symmetric_pd(Sigma, require_pd = TRUE)
   
   v <- diag(Sigma)
@@ -60,8 +69,8 @@ PCA_cor <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
     stop("PCA_cor: Non-positive eigenvalues detected in correlation matrix. Try reducing n_comp or increasing regularization lambda in whiten_model().")
   }
   
-  # Fix sign ambiguity
-  G <- sweep(G, 2, sign(colSums(G)), "*")
+  # Fix sign ambiguity with deterministic / reference-driven alignment
+  G <- .fix_component_sign(G, sign_ref = sign_ref)
   
   result <- list()
   
@@ -93,6 +102,15 @@ PCA_cor <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
     
     result$Phi <- .set_matrix_attr(Phi, row_names, col_names, "PCA-cor")
     result$Psi <- .set_matrix_attr(Psi, row_names, col_names, "PCA-cor")
+  }
+
+  if (return_decomp) {
+    result$decomp <- list(
+      U = G,
+      D = theta,
+      scale_diag = v,
+      inv_tW = diag(sqrt(theta), nrow = k, ncol = k) %*% t(G) %*% diag(sqrt(v))
+    )
   }
   
   result

@@ -13,6 +13,8 @@
 #' @param returnW Logical; if TRUE, return the whitening matrix \code{W}.
 #' @param PhiPsi Logical; if TRUE, return factor loadings \code{Phi}
 #'   and standardized loadings \code{Psi}.
+#' @param return_decomp Logical; if TRUE, return decomposition terms used for
+#'   fast inverse transformation.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix (if \code{returnW = TRUE}).}
@@ -20,7 +22,7 @@
 #'   \item{Psi}{Standardized loadings (if \code{PhiPsi = TRUE}).}
 #'
 #' @export
-Cholesky <- function(Sigma, returnW = TRUE, PhiPsi = TRUE) {
+Cholesky <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
   # Sigma must be symmetric and positive-definite
   .check_symmetric_pd(Sigma, require_pd = TRUE)
   
@@ -49,6 +51,14 @@ Cholesky <- function(Sigma, returnW = TRUE, PhiPsi = TRUE) {
     
     result$Phi <- .set_matrix_attr(Phi, row_names, col_names, "Cholesky")
     result$Psi <- .set_matrix_attr(Psi, row_names, col_names, "Cholesky")
+  }
+
+  if (return_decomp) {
+    result$decomp <- list(
+      U = chol_Sigma,
+      D = diag(chol_Sigma),
+      inv_tW = chol_Sigma
+    )
   }
   
   result

@@ -12,6 +12,8 @@
 #' @param returnW Logical; if TRUE, return the whitening matrix \code{W}.
 #' @param PhiPsi Logical; if TRUE, return factor loadings \code{Phi}
 #'   and standardized loadings \code{Psi}.
+#' @param return_decomp Logical; if TRUE, return decomposition terms used for
+#'   fast inverse transformation.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix based on the correlation structure.}
@@ -19,7 +21,7 @@
 #'   \item{Psi}{Standardized loadings.}
 #'
 #' @export
-ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE) {
+ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
   .check_symmetric_pd(Sigma, require_pd = TRUE)
   
   v <- diag(Sigma)
@@ -59,6 +61,15 @@ ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE) {
     
     result$Phi <- .set_matrix_attr(Phi, row_names, col_names, "ZCA-cor")
     result$Psi <- .set_matrix_attr(Psi, row_names, col_names, "ZCA-cor")
+  }
+
+  if (return_decomp) {
+    result$decomp <- list(
+      U = G,
+      D = theta,
+      scale_diag = v,
+      inv_tW = G %*% diag(sqrt(theta)) %*% t(G) %*% diag(sqrt(v))
+    )
   }
   
   result

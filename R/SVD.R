@@ -10,9 +10,14 @@
 #' but this function may be convenient in some workflows.
 #'
 #' @param Sigma Symmetric positive-definite covariance matrix.
+#' @param n_comp Integer; number of components to keep. If NULL, keeps all.
+#' @param sign_ref Optional reference vectors used to stabilize component
+#'   signs across runs.
 #' @param returnW Logical; if TRUE, return the whitening matrix \code{W}.
 #' @param PhiPsi Logical; if TRUE, return factor loadings \code{Phi}
 #'   and standardized loadings \code{Psi}.
+#' @param return_decomp Logical; if TRUE, return decomposition terms used for
+#'   fast inverse transformation.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix based on the SVD.}
@@ -20,7 +25,12 @@
 #'   \item{Psi}{Standardized loadings.}
 #'
 #' @export
-SVD <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
+SVD <- function(Sigma,
+                n_comp = NULL,
+                sign_ref = NULL,
+                returnW = TRUE,
+                PhiPsi = TRUE,
+                return_decomp = FALSE) {
   .check_symmetric_pd(Sigma, require_pd = TRUE)
   
   v <- diag(Sigma)
@@ -43,6 +53,7 @@ SVD <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
   
   U <- U[, 1:k, drop = FALSE]
   D <- D[1:k]
+  U <- .fix_component_sign(U, sign_ref = sign_ref)
   
   result <- list()
   
@@ -71,6 +82,14 @@ SVD <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
     
     result$Phi <- .set_matrix_attr(Phi, row_names, col_names, "SVD")
     result$Psi <- .set_matrix_attr(Psi, row_names, col_names, "SVD")
+  }
+
+  if (return_decomp) {
+    result$decomp <- list(
+      U = U,
+      D = D,
+      inv_tW = diag(sqrt(D), nrow = k, ncol = k) %*% t(U)
+    )
   }
   
   result

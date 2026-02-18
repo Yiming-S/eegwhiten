@@ -12,11 +12,20 @@
 #'
 #' @param Sigma Symmetric positive-definite covariance matrix.
 #' @param n_comp Integer; number of components to keep.
+#' @param sign_ref Optional reference vectors used to stabilize component
+#'   signs across runs. Must have compatible dimensions with eigenvectors.
 #' @param returnW Logical; if TRUE, return the whitening matrix \code{W}.
 #' @param PhiPsi Logical; if TRUE, return factor loadings.
+#' @param return_decomp Logical; if TRUE, return decomposition terms used for
+#'   fast inverse transformation.
 #'
 #' @export
-PCA <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
+PCA <- function(Sigma,
+                n_comp = NULL,
+                sign_ref = NULL,
+                returnW = TRUE,
+                PhiPsi = TRUE,
+                return_decomp = FALSE) {
   .check_symmetric_pd(Sigma, require_pd = TRUE)
   
   v <- diag(Sigma)
@@ -44,8 +53,8 @@ PCA <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
   # Check positive eigenvalues after truncation (usually handled by check_pd but safe to check)
   if (any(lambda <= 0)) stop("Non-positive eigenvalues detected in PCA.")
   
-  # Fix sign ambiguity
-  U <- sweep(U, 2, sign(colSums(U)), "*")
+  # Fix sign ambiguity with deterministic / reference-driven alignment
+  U <- .fix_component_sign(U, sign_ref = sign_ref)
   
   result <- list()
   
@@ -76,6 +85,14 @@ PCA <- function(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE) {
     
     result$Phi <- .set_matrix_attr(Phi, row_names, col_names, "PCA")
     result$Psi <- .set_matrix_attr(Psi, row_names, col_names, "PCA")
+  }
+
+  if (return_decomp) {
+    result$decomp <- list(
+      U = U,
+      D = lambda,
+      inv_tW = diag(sqrt(lambda), nrow = k, ncol = k) %*% t(U)
+    )
   }
   
   result
