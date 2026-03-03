@@ -4,7 +4,14 @@
 \alias{ZCA_cor}
 \title{ZCA whitening on the correlation matrix}
 \usage{
-ZCA_cor(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE)
+ZCA_cor(
+  Sigma,
+  returnW = TRUE,
+  PhiPsi = TRUE,
+  return_decomp = FALSE,
+  eig_method = c("auto", "base", "rspectra"),
+  fast = FALSE
+)
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}
@@ -16,6 +23,12 @@ and standardized loadings \code{Psi}.}
 
 \item{return_decomp}{Logical; if TRUE, return decomposition terms used for
 fast inverse transformation.}
+
+\item{eig_method}{Eigen solver backend; one of \code{"auto"},
+\code{"base"}, or \code{"rspectra"}.}
+
+\item{fast}{Logical; if \code{TRUE}, use relaxed checks and faster iterative
+eigensolver settings when available.}
 }
 \value{
 A list with some of the elements:

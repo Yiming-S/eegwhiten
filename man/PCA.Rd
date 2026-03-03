@@ -10,7 +10,9 @@ PCA(
   sign_ref = NULL,
   returnW = TRUE,
   PhiPsi = TRUE,
-  return_decomp = FALSE
+  return_decomp = FALSE,
+  eig_method = c("auto", "base", "rspectra"),
+  fast = FALSE
 )
 }
 \arguments{
@@ -27,6 +29,12 @@ signs across runs. Must have compatible dimensions with eigenvectors.}
 
 \item{return_decomp}{Logical; if TRUE, return decomposition terms used for
 fast inverse transformation.}
+
+\item{eig_method}{Eigen solver backend; one of \code{"auto"},
+\code{"base"}, or \code{"rspectra"}.}
+
+\item{fast}{Logical; if \code{TRUE}, allow faster approximate settings
+for iterative eigensolvers.}
 }
 \description{
 Perform whitening based on the eigen-decomposition.

@@ -7,7 +7,7 @@
 euclidean_alignment(
   X_list,
   input = c("auto", "raw", "cov"),
-  mean_method = c("riemann", "logeuclid", "euclid"),
+  mean_method = c("logeuclid", "riemann", "euclid"),
   center = TRUE,
   tol = 1e-06,
   max_iter = 50,

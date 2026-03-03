@@ -10,6 +10,8 @@ whiten_fit(
   n_comp = NULL,
   var_threshold = NULL,
   lambda = 0,
+  eig_method = c("auto", "base", "rspectra"),
+  fast = FALSE,
   sign_reference = NULL
 )
 }
@@ -28,6 +30,12 @@ threshold used to choose \code{n_comp} automatically for
 
 \item{lambda}{Numeric in [0, 1]; optional shrinkage applied directly to
 \code{Sigma} toward a scaled identity target before whitening.}
+
+\item{eig_method}{Eigen solver backend; one of \code{"auto"},
+\code{"base"}, or \code{"rspectra"}.}
+
+\item{fast}{Logical; if \code{TRUE}, allow faster approximate settings
+for iterative eigensolvers.}
 
 \item{sign_reference}{Optional reference vectors used for stable component
 sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}

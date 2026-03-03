@@ -12,10 +12,12 @@ whiten_batch(
   var_threshold = NULL,
   lambda = "auto",
   lambda_method = c("oas", "lw"),
+  eig_method = c("auto", "base", "rspectra"),
+  fast = FALSE,
   sign_reference = NULL,
   shared_model = FALSE,
   mode = c("independent", "shared_model", "ea"),
-  ea_mean = c("riemann", "logeuclid", "euclid"),
+  ea_mean = c("logeuclid", "riemann", "euclid"),
   ea_input = c("auto", "raw", "cov"),
   ea_tol = 1e-06,
   ea_max_iter = 50,
@@ -43,6 +45,12 @@ strength.}
 
 \item{lambda_method}{Method used when \code{lambda = "auto"}.
 One of \code{"oas"} or \code{"lw"}.}
+
+\item{eig_method}{Eigen solver backend; one of \code{"auto"},
+\code{"base"}, or \code{"rspectra"}.}
+
+\item{fast}{Logical; if \code{TRUE}, allow faster approximate settings
+for iterative eigensolvers.}
 
 \item{sign_reference}{Optional reference vectors used for stable component
 sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}

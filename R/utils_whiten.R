@@ -91,17 +91,102 @@
   .normalize_whiten_method(method) %in% c("PCA", "PCA-cor", "SVD")
 }
 
+# Unified SPD eigendecomposition helper with optional top-k solver
+.eigen_spd <- function(Sigma,
+                       k = NULL,
+                       method = c("auto", "base", "rspectra"),
+                       fast = FALSE) {
+  method <- match.arg(method)
+  if (!is.matrix(Sigma) || !is.numeric(Sigma)) {
+    stop("Sigma must be a numeric matrix.")
+  }
+  d <- ncol(Sigma)
+  if (nrow(Sigma) != d) {
+    stop("Sigma must be square.")
+  }
+  if (is.null(k)) {
+    k <- d
+  } else {
+    if (!is.numeric(k) || length(k) != 1L || !is.finite(k) || k < 1 || k > d || k != as.integer(k)) {
+      stop("k must be an integer between 1 and ncol(Sigma).")
+    }
+    k <- as.integer(k)
+  }
+
+  rs_available <- requireNamespace("RSpectra", quietly = TRUE)
+  use_rs <- FALSE
+  if (method == "rspectra") {
+    if (!rs_available) {
+      stop("eig_method = 'rspectra' requires package 'RSpectra'.")
+    }
+    use_rs <- k < d
+  } else if (method == "auto") {
+    use_rs <- rs_available && k < d
+  }
+
+  if (use_rs) {
+    opts <- if (fast) list(tol = 1e-4, maxitr = 1000) else list()
+    rs <- RSpectra::eigs_sym(
+      .symmetrize(Sigma),
+      k = k,
+      which = "LM",
+      opts = opts
+    )
+    ord <- order(Re(rs$values), decreasing = TRUE)
+    values <- Re(rs$values[ord])
+    vectors <- Re(rs$vectors[, ord, drop = FALSE])
+    return(list(values = values, vectors = vectors, engine = "RSpectra"))
+  }
+
+  eig <- eigen(Sigma, symmetric = TRUE)
+  values <- eig$values
+  vectors <- eig$vectors
+  if (k < d) {
+    values <- values[seq_len(k)]
+    vectors <- vectors[, seq_len(k), drop = FALSE]
+  }
+  list(values = values, vectors = vectors, engine = "eigen")
+}
+
+# Covariance from raw data and mean without constructing centered copy
+.cov_from_mean <- function(X, mu) {
+  if (!is.matrix(X) || !is.numeric(X)) stop("X must be a numeric matrix.")
+  if (!is.numeric(mu) || length(mu) != ncol(X)) stop("mu must have length ncol(X).")
+  n <- nrow(X)
+  if (n <= 1L) stop("X must have at least 2 rows.")
+  XtX <- crossprod(X)
+  centered_ss <- XtX - n * tcrossprod(mu)
+  .symmetrize(centered_ss / (n - 1L))
+}
+
 # Return component spectrum used for dimensionality decisions
-.component_spectrum <- function(Sigma, method) {
+.component_spectrum_info <- function(Sigma,
+                                     method,
+                                     k = NULL,
+                                     eig_method = c("auto", "base", "rspectra"),
+                                     fast = FALSE) {
   method <- .normalize_whiten_method(method)
+  eig_method <- match.arg(eig_method)
   if (method == "PCA-cor") {
-    vals <- eigen(stats::cov2cor(Sigma), symmetric = TRUE, only.values = TRUE)$values
+    R <- stats::cov2cor(Sigma)
+    dec <- .eigen_spd(R, k = k, method = eig_method, fast = fast)
+    total <- ncol(R)
   } else if (method %in% c("PCA", "SVD")) {
-    vals <- eigen(Sigma, symmetric = TRUE, only.values = TRUE)$values
+    dec <- .eigen_spd(Sigma, k = k, method = eig_method, fast = fast)
+    total <- sum(diag(Sigma))
   } else {
     stop("Component spectrum is only defined for PCA, PCA-cor, and SVD.")
   }
-  pmax(vals, 0)
+  list(
+    values = pmax(dec$values, 0),
+    total = max(total, .Machine$double.eps),
+    engine = dec$engine
+  )
+}
+
+# Backward-compatible vector-only spectrum helper
+.component_spectrum <- function(Sigma, method) {
+  .component_spectrum_info(Sigma, method)$values
 }
 
 # Pick minimum k such that cumulative explained variance reaches threshold
@@ -117,12 +202,13 @@
 }
 
 # Explained variance ratio for first k components
-.explained_ratio <- function(values, k) {
+.explained_ratio <- function(values, k, total = NULL) {
   if (is.null(k)) return(NA_real_)
-  if (k >= length(values)) return(1)
-  denom <- sum(values)
+  if (is.null(total) && k >= length(values)) return(1)
+  denom <- if (is.null(total)) sum(values) else total
   if (denom <= 0) return(NA_real_)
-  sum(values[seq_len(k)]) / denom
+  k_use <- min(k, length(values))
+  sum(values[seq_len(k_use)]) / denom
 }
 
 # Deterministic sign alignment for eigen/singular vectors
@@ -156,7 +242,7 @@
 }
 
 # Basic check: Sigma must be symmetric; optionally positive-definite
-.check_symmetric_pd <- function(Sigma, tol = 1e-8, require_pd = TRUE) {
+.check_symmetric_pd <- function(Sigma, tol = 1e-8, require_pd = TRUE, return_eigen = TRUE) {
   if (!is.matrix(Sigma)) stop("Sigma must be a matrix.")
   if (nrow(Sigma) != ncol(Sigma)) stop("Sigma must be a square matrix.")
   if (!is.numeric(Sigma)) stop("Sigma must be numeric.")
@@ -164,9 +250,27 @@
   if (!isTRUE(all.equal(Sigma, t(Sigma), tolerance = tol))) {
     stop("Sigma must be symmetric.")
   }
+
+  if (!return_eigen) {
+    if (require_pd) {
+      chol_ok <- tryCatch(
+        {
+          chol(Sigma)
+          TRUE
+        },
+        error = function(e) FALSE
+      )
+      if (!chol_ok) {
+        eig <- eigen(Sigma, symmetric = TRUE, only.values = TRUE)$values
+        min_eig <- min(eig)
+        stop(sprintf("Sigma must be positive-definite. Min eigenvalue = %g. Try using lambda > 0 in whiten_model().", min_eig))
+      }
+    }
+    return(invisible(NULL))
+  }
+
   eig <- eigen(Sigma, symmetric = TRUE, only.values = TRUE)$values
   if (require_pd && any(eig <= tol)) {
-    # More informative error for debugging
     min_eig <- min(eig)
     stop(sprintf("Sigma must be positive-definite. Min eigenvalue = %g. Try using lambda > 0 in whiten_model().", min_eig))
   }

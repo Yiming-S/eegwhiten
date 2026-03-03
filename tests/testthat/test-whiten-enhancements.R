@@ -249,3 +249,50 @@ test_that("whiten_batch parallel mode matches sequential mode", {
     expect_equal(seq_out[[i]]$W, par_out[[i]]$W, tolerance = 1e-10)
   }
 })
+
+test_that("predict uses cached transpose and matches fallback", {
+  set.seed(606)
+  X <- matrix(rnorm(240 * 8), 240, 8)
+  m <- whiten_model(X, method = "PCA", n_comp = 5, eig_method = "base")
+  expect_true(is.matrix(m$Wt))
+
+  z_cached <- predict(m, X)
+  m_no_cache <- m
+  m_no_cache$Wt <- NULL
+  z_fallback <- predict(m_no_cache, X)
+  expect_equal(z_cached, z_fallback, tolerance = 1e-12)
+})
+
+test_that("eigen backend options are accepted", {
+  set.seed(707)
+  X <- matrix(rnorm(320 * 14), 320, 14)
+
+  m_base <- whiten_model(
+    X,
+    method = "PCA",
+    n_comp = 6,
+    eig_method = "base",
+    fast = FALSE,
+    lambda = 0.05
+  )
+  m_auto <- whiten_model(
+    X,
+    method = "PCA",
+    n_comp = 6,
+    eig_method = "auto",
+    fast = TRUE,
+    lambda = 0.05
+  )
+
+  expect_equal(dim(m_base$W), dim(m_auto$W))
+  expect_true(all(is.finite(m_auto$W)))
+})
+
+test_that("EA default mean method is logeuclid", {
+  set.seed(808)
+  X1 <- matrix(rnorm(140 * 5), 140, 5)
+  X2 <- matrix(rnorm(160 * 5), 160, 5)
+  out <- whiten_batch(list(X1, X2), mode = "ea")
+  model <- attr(out, "model")
+  expect_equal(model$mean_method, "logeuclid")
+})

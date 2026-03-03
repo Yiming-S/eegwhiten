@@ -18,6 +18,10 @@
 #'   and standardized loadings \code{Psi}.
 #' @param return_decomp Logical; if TRUE, return decomposition terms used for
 #'   fast inverse transformation.
+#' @param eig_method Eigen solver backend; one of \code{"auto"},
+#'   \code{"base"}, or \code{"rspectra"}.
+#' @param fast Logical; if \code{TRUE}, allow faster approximate settings
+#'   for iterative eigensolvers.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix based on the SVD.}
@@ -30,33 +34,34 @@ SVD <- function(Sigma,
                 sign_ref = NULL,
                 returnW = TRUE,
                 PhiPsi = TRUE,
-                return_decomp = FALSE) {
+                return_decomp = FALSE,
+                eig_method = c("auto", "base", "rspectra"),
+                fast = FALSE) {
   if (!isTRUE(attr(Sigma, ".checked_spd"))) {
     .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
+  eig_method <- match.arg(eig_method)
+  if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
+    stop("fast must be TRUE or FALSE.")
   }
   
   v <- diag(Sigma)
   if (any(v <= 0)) stop("Diagonal elements of Sigma must be positive.")
   
-  # For SPD matrices, SVD and eigen-decomposition coincide.
-  # Use symmetric eigen for lower overhead.
-  eSigma <- eigen(Sigma, symmetric = TRUE)
-  U <- eSigma$vectors
-  D <- eSigma$values
-  
-  if (any(D <= 0)) stop("Sigma must be positive-definite.")
-  
   # --- Dimensionality Reduction ---
-  d_full <- length(D)
+  d_full <- ncol(Sigma)
   if (!is.null(n_comp)) {
     if (n_comp < 1 || n_comp > d_full) stop("n_comp out of range.")
     k <- n_comp
   } else {
     k <- d_full
   }
+  dec <- .eigen_spd(Sigma, k = k, method = eig_method, fast = fast)
+  U <- dec$vectors
+  D <- dec$values
   
-  U <- U[, 1:k, drop = FALSE]
-  D <- D[1:k]
+  if (any(D <= 0)) stop("Sigma must be positive-definite.")
+  
   U <- .fix_component_sign(U, sign_ref = sign_ref)
   
   result <- list()

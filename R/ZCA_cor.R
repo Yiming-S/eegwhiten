@@ -14,6 +14,10 @@
 #'   and standardized loadings \code{Psi}.
 #' @param return_decomp Logical; if TRUE, return decomposition terms used for
 #'   fast inverse transformation.
+#' @param eig_method Eigen solver backend; one of \code{"auto"},
+#'   \code{"base"}, or \code{"rspectra"}.
+#' @param fast Logical; if \code{TRUE}, use relaxed checks and faster iterative
+#'   eigensolver settings when available.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix based on the correlation structure.}
@@ -21,9 +25,18 @@
 #'   \item{Psi}{Standardized loadings.}
 #'
 #' @export
-ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
+ZCA_cor <- function(Sigma,
+                    returnW = TRUE,
+                    PhiPsi = TRUE,
+                    return_decomp = FALSE,
+                    eig_method = c("auto", "base", "rspectra"),
+                    fast = FALSE) {
   if (!isTRUE(attr(Sigma, ".checked_spd"))) {
     .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
+  eig_method <- match.arg(eig_method)
+  if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
+    stop("fast must be TRUE or FALSE.")
   }
   
   v <- diag(Sigma)
@@ -32,10 +45,13 @@ ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE)
   }
   
   R <- stats::cov2cor(Sigma)
-  
-  eR    <- eigen(R, symmetric = TRUE)
-  theta <- eR$values
-  G     <- eR$vectors
+  tol_diag <- if (fast) 1e-5 else sqrt(.Machine$double.eps)
+  if (any(abs(diag(R) - 1) > tol_diag)) {
+    stop("Diagonal elements of the correlation matrix must be approximately 1.")
+  }
+  dec <- .eigen_spd(R, k = ncol(R), method = eig_method, fast = fast)
+  theta <- dec$values
+  G <- dec$vectors
   
   if (any(theta <= 0)) {
     stop("Correlation matrix R must be positive-definite for ZCA-cor.")

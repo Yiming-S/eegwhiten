@@ -20,6 +20,10 @@
 #'   and standardized loadings \code{Psi}.
 #' @param return_decomp Logical; if TRUE, return decomposition terms used for
 #'   fast inverse transformation.
+#' @param eig_method Eigen solver backend; one of \code{"auto"},
+#'   \code{"base"}, or \code{"rspectra"}.
+#' @param fast Logical; if \code{TRUE}, use relaxed checks and faster iterative
+#'   eigensolver settings when available.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix based on the correlation structure.}
@@ -32,9 +36,15 @@ PCA_cor <- function(Sigma,
                     sign_ref = NULL,
                     returnW = TRUE,
                     PhiPsi = TRUE,
-                    return_decomp = FALSE) {
+                    return_decomp = FALSE,
+                    eig_method = c("auto", "base", "rspectra"),
+                    fast = FALSE) {
   if (!isTRUE(attr(Sigma, ".checked_spd"))) {
     .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
+  eig_method <- match.arg(eig_method)
+  if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
+    stop("fast must be TRUE or FALSE.")
   }
   
   v <- diag(Sigma)
@@ -45,25 +55,22 @@ PCA_cor <- function(Sigma,
   R <- stats::cov2cor(Sigma)
   
   # Diagonal of R should be numerically 1
-  if (any(abs(diag(R) - 1) > sqrt(.Machine$double.eps))) {
+  tol_diag <- if (fast) 1e-5 else sqrt(.Machine$double.eps)
+  if (any(abs(diag(R) - 1) > tol_diag)) {
     stop("Diagonal elements of the correlation matrix must be approximately 1.")
   }
   
-  eR    <- eigen(R, symmetric = TRUE)
-  G     <- eR$vectors
-  theta <- eR$values
-  
   # --- Dimensionality Reduction and Stability Check ---
-  d <- length(theta)
+  d <- ncol(R)
   if (!is.null(n_comp)) {
     if (n_comp < 1 || n_comp > d) stop("n_comp out of range.")
     k <- n_comp
   } else {
     k <- d
   }
-  
-  G     <- G[, 1:k, drop = FALSE]
-  theta <- theta[1:k]
+  dec <- .eigen_spd(R, k = k, method = eig_method, fast = fast)
+  G <- dec$vectors
+  theta <- dec$values
   
   # Crucial stability check for PCA whitening
   # If eigenvalues of R are <= 0, 1/sqrt(theta) will fail or produce NaNs

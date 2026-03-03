@@ -20,6 +20,10 @@
 #'   \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
 #' @param lambda Numeric in [0, 1]; optional shrinkage applied directly to
 #'   \code{Sigma} toward a scaled identity target before whitening.
+#' @param eig_method Eigen solver backend; one of \code{"auto"},
+#'   \code{"base"}, or \code{"rspectra"}.
+#' @param fast Logical; if \code{TRUE}, allow faster approximate settings
+#'   for iterative eigensolvers.
 #' @param sign_reference Optional reference vectors used for stable component
 #'   sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
 #'
@@ -32,11 +36,17 @@ whiten_fit <- function(Sigma,
                        n_comp = NULL,
                        var_threshold = NULL,
                        lambda = 0,
+                       eig_method = c("auto", "base", "rspectra"),
+                       fast = FALSE,
                        sign_reference = NULL) {
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
+  eig_method <- match.arg(eig_method)
   .check_var_threshold(var_threshold)
   .check_unit_interval(lambda, "lambda")
+  if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
+    stop("fast must be TRUE or FALSE.")
+  }
   is_reduction <- .is_reduction_method(method)
 
   if (!is.null(n_comp)) {
@@ -69,12 +79,17 @@ whiten_fit <- function(Sigma,
 
   if (is_reduction) {
     if (is.null(n_comp) && !is.null(var_threshold)) {
-      spectrum <- if (method %in% c("PCA", "SVD") && lambda == 0) {
-        pmax(eig, 0)
+      spectrum_info <- if (method %in% c("PCA", "SVD") && lambda == 0) {
+        list(values = pmax(eig, 0), total = sum(diag(S)))
       } else {
-        .component_spectrum(S, method)
+        .component_spectrum_info(
+          S,
+          method,
+          eig_method = eig_method,
+          fast = fast
+        )
       }
-      n_comp <- .n_comp_from_threshold(spectrum, var_threshold)
+      n_comp <- .n_comp_from_threshold(spectrum_info$values, var_threshold)
     }
     if (!is.null(n_comp) && (n_comp < 1L || n_comp > d)) {
       stop("n_comp must be between 1 and ncol(Sigma).")
@@ -98,6 +113,10 @@ whiten_fit <- function(Sigma,
   }
   if (is_reduction && !is.null(sign_reference)) {
     args$sign_ref <- sign_reference
+  }
+  if (method %in% c("PCA", "PCA-cor", "SVD", "ZCA", "ZCA-cor")) {
+    args$eig_method <- eig_method
+    args$fast <- fast
   }
   
   # Call the specific function (e.g., PCA(Sigma, ...))
@@ -132,6 +151,10 @@ whiten_fit <- function(Sigma,
 #'   Values between 0 and 1 mix the two. Useful for high-dimensional/low-sample EEG data.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param eig_method Eigen solver backend; one of \code{"auto"},
+#'   \code{"base"}, or \code{"rspectra"}.
+#' @param fast Logical; if \code{TRUE}, allow faster approximate settings
+#'   for iterative eigensolvers.
 #' @param sign_reference Optional reference vectors used for stable component
 #'   sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
 #'
@@ -145,10 +168,16 @@ whiten_model <- function(X, center = TRUE,
                          var_threshold = NULL,
                          lambda = "auto",
                          lambda_method = c("oas", "lw"),
+                         eig_method = c("auto", "base", "rspectra"),
+                         fast = FALSE,
                          sign_reference = NULL) {
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  eig_method <- match.arg(eig_method)
+  if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
+    stop("fast must be TRUE or FALSE.")
+  }
   is_reduction <- .is_reduction_method(method)
   .check_var_threshold(var_threshold)
 
@@ -218,12 +247,15 @@ whiten_model <- function(X, center = TRUE,
   # 1. Centering
   mu <- if (center) colMeans(X) else rep(0, d)
   names(mu) <- colnames(X)
-  
-  # Centered data
-  Xc <- sweep(X, 2, mu, "-")
-  
+
   # 2. Covariance estimation with optional shrinkage
-  S <- crossprod(Xc) / (n - 1L)
+  Xc <- NULL
+  if (lambda_auto) {
+    Xc <- if (center) sweep(X, 2, mu, "-") else X
+    S <- crossprod(Xc) / (n - 1L)
+  } else {
+    S <- .cov_from_mean(X, mu)
+  }
   if (lambda_auto) {
     lambda <- if (lambda_method == "oas") .lambda_oas(Xc) else .lambda_lw(Xc)
   }
@@ -235,8 +267,14 @@ whiten_model <- function(X, center = TRUE,
     S <- (1 - lambda) * S + lambda * target_mat
   }
 
-  eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE)
-  cond_raw <- max(eig_shrunk) / min(pmax(eig_shrunk, .Machine$double.eps))
+  need_full_eigs <- !is_reduction || !is.null(var_threshold) || is.null(n_comp) || identical(eig_method, "base")
+  eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE, return_eigen = need_full_eigs)
+  cond_raw <- if (need_full_eigs) {
+    max(eig_shrunk) / min(pmax(eig_shrunk, .Machine$double.eps))
+  } else {
+    inv_rcond <- tryCatch(1 / rcond(S), error = function(e) NA_real_)
+    inv_rcond
+  }
   if (lambda == 0 && is.finite(cond_raw) && cond_raw > 1e8) {
     warning(sprintf("Sample covariance is ill-conditioned (condition number ~ %.3e); consider lambda='auto' or lambda > 0.", cond_raw))
   }
@@ -244,19 +282,34 @@ whiten_model <- function(X, center = TRUE,
 
   n_comp_final <- n_comp
   explained_var <- NA_real_
+  spectrum_info <- NULL
   if (is_reduction) {
-    spectrum <- if (method %in% c("PCA", "SVD")) {
-      pmax(eig_shrunk, 0)
-    } else {
-      .component_spectrum(S, method)
-    }
     if (is.null(n_comp_final) && !is.null(var_threshold)) {
-      n_comp_final <- .n_comp_from_threshold(spectrum, var_threshold)
+      spectrum_info <- if (method %in% c("PCA", "SVD") && need_full_eigs) {
+        list(values = pmax(eig_shrunk, 0), total = sum(diag(S)))
+      } else {
+        .component_spectrum_info(S, method, eig_method = eig_method, fast = fast)
+      }
+      n_comp_final <- .n_comp_from_threshold(spectrum_info$values, var_threshold)
     }
     if (is.null(n_comp_final)) {
-      n_comp_final <- length(spectrum)
+      n_comp_final <- d
     }
-    explained_var <- .explained_ratio(spectrum, n_comp_final)
+    if (is.null(spectrum_info)) {
+      k_spec <- min(n_comp_final, d)
+      spectrum_info <- if (method %in% c("PCA", "SVD") && need_full_eigs) {
+        list(values = pmax(eig_shrunk[seq_len(k_spec)], 0), total = sum(diag(S)))
+      } else {
+        .component_spectrum_info(
+          S,
+          method,
+          k = k_spec,
+          eig_method = eig_method,
+          fast = fast
+        )
+      }
+    }
+    explained_var <- .explained_ratio(spectrum_info$values, n_comp_final, total = spectrum_info$total)
   }
   
   # 3. Fit Whitening Matrix
@@ -266,6 +319,10 @@ whiten_model <- function(X, center = TRUE,
   }
   if (is_reduction && !is.null(sign_reference)) {
     fit_args$sign_ref <- sign_reference
+  }
+  if (method %in% c("PCA", "PCA-cor", "SVD", "ZCA", "ZCA-cor")) {
+    fit_args$eig_method <- eig_method
+    fit_args$fast <- fast
   }
   
   res <- do.call(.method_to_function(method), fit_args)
@@ -277,6 +334,7 @@ whiten_model <- function(X, center = TRUE,
   structure(
     list(
       W      = W,
+      Wt     = t(W),
       center = mu,
       method = method,
       n_comp = n_comp_final,
@@ -285,6 +343,8 @@ whiten_model <- function(X, center = TRUE,
       lambda = lambda,
       lambda_input = if (lambda_auto) "auto" else as.character(lambda),
       lambda_method = if (lambda_auto) lambda_method else NA_character_,
+      eig_method = eig_method,
+      fast = fast,
       U = decomp$U,
       D = decomp$D,
       inv_tW = inv_tW,
@@ -323,8 +383,8 @@ predict.whiten_model <- function(object, newdata, ...) {
   Xc <- sweep(newdata, 2, object$center, "-")
 
   # Z = centered X times whitening matrix
-  # W is typically [k x d]. tcrossprod(Xc, W) -> [n x d] * [d x k] = [n x k]
-  Z <- tcrossprod(Xc, object$W)
+  Wt <- if (!is.null(object$Wt)) object$Wt else t(object$W)
+  Z <- Xc %*% Wt
 
   # Update column names based on output dimension
   k <- ncol(Z)

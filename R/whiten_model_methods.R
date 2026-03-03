@@ -22,6 +22,8 @@ print.whiten_model <- function(x, ...) {
 
   lambda_input <- if (!is.null(x$lambda_input)) x$lambda_input else as.character(x$lambda)
   lambda_method <- if (!is.null(x$lambda_method)) x$lambda_method else NA_character_
+  eig_method <- if (!is.null(x$eig_method)) x$eig_method else NA_character_
+  fast_mode <- if (!is.null(x$fast)) x$fast else NA
 
   cat("<whiten_model>\n")
   cat("  method      :", x$method, "\n")
@@ -30,6 +32,8 @@ print.whiten_model <- function(x, ...) {
   cat("  var_threshold:", show_val(x$var_threshold), "\n")
   cat("  explained_var:", show_val(x$explained_var, digits = 4), "\n")
   cat("  lambda      :", show_val(x$lambda, digits = 4), "\n")
+  cat("  eig_method  :", show_val(eig_method), "\n")
+  cat("  fast_mode   :", show_val(fast_mode), "\n")
   if (identical(lambda_input, "auto")) {
     cat("  lambda_mode :", "auto (", lambda_method, ")\n", sep = "")
   }
@@ -72,6 +76,8 @@ summary.whiten_model <- function(object, data = NULL, Z = NULL, ...) {
     lambda = object$lambda,
     lambda_input = if (!is.null(object$lambda_input)) object$lambda_input else as.character(object$lambda),
     lambda_method = if (!is.null(object$lambda_method)) object$lambda_method else NA_character_,
+    eig_method = if (!is.null(object$eig_method)) object$eig_method else NA_character_,
+    fast = if (!is.null(object$fast)) object$fast else NA,
     diagnostics = diagnostics
   )
 
@@ -102,6 +108,8 @@ print.summary.whiten_model <- function(x, ...) {
   cat("  var_threshold:", show_val(x$var_threshold), "\n")
   cat("  explained_var:", show_val(x$explained_var, digits = 4), "\n")
   cat("  lambda      :", show_val(x$lambda, digits = 4), "\n")
+  cat("  eig_method  :", show_val(x$eig_method), "\n")
+  cat("  fast_mode   :", show_val(x$fast), "\n")
   if (identical(x$lambda_input, "auto")) {
     cat("  lambda_mode :", "auto (", x$lambda_method, ")\n", sep = "")
   }

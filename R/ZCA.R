@@ -15,6 +15,10 @@
 #'   and standardized loadings \code{Psi}.
 #' @param return_decomp Logical; if TRUE, return decomposition terms used for
 #'   fast inverse transformation.
+#' @param eig_method Eigen solver backend; one of \code{"auto"},
+#'   \code{"base"}, or \code{"rspectra"}.
+#' @param fast Logical; if \code{TRUE}, allow faster approximate settings
+#'   for iterative eigensolvers.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{ZCA whitening matrix.}
@@ -22,16 +26,25 @@
 #'   \item{Psi}{Standardized loadings.}
 #'
 #' @export
-ZCA <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
+ZCA <- function(Sigma,
+                returnW = TRUE,
+                PhiPsi = TRUE,
+                return_decomp = FALSE,
+                eig_method = c("auto", "base", "rspectra"),
+                fast = FALSE) {
   if (!isTRUE(attr(Sigma, ".checked_spd"))) {
     .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
+  eig_method <- match.arg(eig_method)
+  if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
+    stop("fast must be TRUE or FALSE.")
   }
   
   v <- diag(Sigma)
   
-  eSigma <- eigen(Sigma, symmetric = TRUE)
-  lambda <- eSigma$values
-  U      <- eSigma$vectors
+  dec <- .eigen_spd(Sigma, k = ncol(Sigma), method = eig_method, fast = fast)
+  lambda <- dec$values
+  U <- dec$vectors
   
   if (any(lambda <= 0)) {
     stop("Sigma must be positive-definite (eigenvalues > 0) for ZCA.")

@@ -22,6 +22,10 @@
 #'   strength.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param eig_method Eigen solver backend; one of \code{"auto"},
+#'   \code{"base"}, or \code{"rspectra"}.
+#' @param fast Logical; if \code{TRUE}, allow faster approximate settings
+#'   for iterative eigensolvers.
 #' @param sign_reference Optional reference vectors used for stable component
 #'   sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
 #'
@@ -52,10 +56,13 @@ whiten_matrix <- function(X, center = TRUE,
                           var_threshold = NULL,
                           lambda = "auto",
                           lambda_method = c("oas", "lw"),
+                          eig_method = c("auto", "base", "rspectra"),
+                          fast = FALSE,
                           sign_reference = NULL) {
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  eig_method <- match.arg(eig_method)
   
   model <- whiten_model(
     X,
@@ -65,6 +72,8 @@ whiten_matrix <- function(X, center = TRUE,
     var_threshold = var_threshold,
     lambda = lambda,
     lambda_method = lambda_method,
+    eig_method = eig_method,
+    fast = fast,
     sign_reference = sign_reference
   )
   Z     <- stats::predict(model, X)
@@ -103,6 +112,10 @@ whiten_matrix <- function(X, center = TRUE,
 #'   strength.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param eig_method Eigen solver backend; one of \code{"auto"},
+#'   \code{"base"}, or \code{"rspectra"}.
+#' @param fast Logical; if \code{TRUE}, allow faster approximate settings
+#'   for iterative eigensolvers.
 #' @param sign_reference Optional reference vectors used for stable component
 #'   sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
 #' @param shared_model Logical; if \code{TRUE}, fit one model on the first
@@ -133,10 +146,12 @@ whiten_batch <- function(X_list, center = TRUE,
                          var_threshold = NULL,
                          lambda = "auto",
                          lambda_method = c("oas", "lw"),
+                         eig_method = c("auto", "base", "rspectra"),
+                         fast = FALSE,
                          sign_reference = NULL,
                          shared_model = FALSE,
                          mode = c("independent", "shared_model", "ea"),
-                         ea_mean = c("riemann", "logeuclid", "euclid"),
+                         ea_mean = c("logeuclid", "riemann", "euclid"),
                          ea_input = c("auto", "raw", "cov"),
                          ea_tol = 1e-6,
                          ea_max_iter = 50,
@@ -145,6 +160,7 @@ whiten_batch <- function(X_list, center = TRUE,
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  eig_method <- match.arg(eig_method)
   mode <- match.arg(mode)
   ea_mean <- match.arg(ea_mean)
   ea_input <- match.arg(ea_input)
@@ -219,6 +235,8 @@ whiten_batch <- function(X_list, center = TRUE,
       var_threshold = var_threshold,
       lambda = lambda,
       lambda_method = lambda_method,
+      eig_method = eig_method,
+      fast = fast,
       sign_reference = sign_reference
     )
     
@@ -254,6 +272,8 @@ whiten_batch <- function(X_list, center = TRUE,
         var_threshold = var_threshold,
         lambda = lambda,
         lambda_method = lambda_method,
+        eig_method = eig_method,
+        fast = fast,
         sign_reference = sign_reference
       )
     }

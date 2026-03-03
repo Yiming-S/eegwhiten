@@ -1,0 +1,43 @@
+name: Performance Benchmark
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "R/**"
+      - "tests/**"
+      - "inst/bench/**"
+      - "DESCRIPTION"
+      - ".github/workflows/performance-benchmark.yml"
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install dependencies
+        run: |
+          Rscript -e 'install.packages(c("testthat", "RSpectra"), repos = "https://cloud.r-project.org")'
+
+      - name: Install package
+        run: R CMD INSTALL .
+
+      - name: Run tests
+        run: Rscript -e 'testthat::test_dir("tests/testthat")'
+
+      - name: Run performance benchmarks
+        run: Rscript inst/bench/perf_regression.R --output out/perf-metrics.csv
+
+      - name: Upload benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-metrics
+          path: out/perf-metrics.csv
+
