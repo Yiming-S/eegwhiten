@@ -24,7 +24,9 @@
 #' @export
 Cholesky <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
   # Sigma must be symmetric and positive-definite
-  .check_symmetric_pd(Sigma, require_pd = TRUE)
+  if (!isTRUE(attr(Sigma, ".checked_spd"))) {
+    .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
   
   v <- diag(Sigma)
   chol_Sigma <- chol(Sigma)  # upper triangular
@@ -33,7 +35,7 @@ Cholesky <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE
   
   if (returnW) {
     # W: components x original features
-    W <- solve(t(chol_Sigma))
+    W <- backsolve(chol_Sigma, diag(ncol(Sigma)), transpose = TRUE)
     result$W <- .set_matrix_attr(
       W,
       row_names = paste0("L", seq_len(ncol(Sigma))),
@@ -44,7 +46,7 @@ Cholesky <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE
   
   if (PhiPsi) {
     Phi <- t(chol_Sigma)                 # loadings in original space
-    Psi <- diag(1 / sqrt(v)) %*% Phi     # standardized loadings
+    Psi <- sweep(Phi, 1L, 1 / sqrt(v), "*") # standardized loadings
     
     row_names <- colnames(Sigma)
     col_names <- paste0("L", seq_len(ncol(Sigma)))

@@ -31,14 +31,18 @@ SVD <- function(Sigma,
                 returnW = TRUE,
                 PhiPsi = TRUE,
                 return_decomp = FALSE) {
-  .check_symmetric_pd(Sigma, require_pd = TRUE)
+  if (!isTRUE(attr(Sigma, ".checked_spd"))) {
+    .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
   
   v <- diag(Sigma)
   if (any(v <= 0)) stop("Diagonal elements of Sigma must be positive.")
   
-  svdSigma <- svd(Sigma)
-  U <- svdSigma$u
-  D <- svdSigma$d
+  # For SPD matrices, SVD and eigen-decomposition coincide.
+  # Use symmetric eigen for lower overhead.
+  eSigma <- eigen(Sigma, symmetric = TRUE)
+  U <- eSigma$vectors
+  D <- eSigma$values
   
   if (any(D <= 0)) stop("Sigma must be positive-definite.")
   
@@ -60,7 +64,7 @@ SVD <- function(Sigma,
   if (returnW) {
     # W: [k x d]
     # W = D^-1/2 * U^T
-    W <- tcrossprod(diag(1 / sqrt(D), nrow = k, ncol = k), U)
+    W <- sweep(t(U), 1L, 1 / sqrt(D), "*")
     
     result$W <- .set_matrix_attr(
       W,
@@ -72,10 +76,10 @@ SVD <- function(Sigma,
   
   if (PhiPsi) {
     # Phi: U * D^1/2
-    Phi <- U %*% diag(sqrt(D), nrow = k, ncol = k)
+    Phi <- sweep(U, 2L, sqrt(D), "*")
     
     # Psi: V^-1/2 * Phi
-    Psi <- diag(1 / sqrt(v)) %*% Phi
+    Psi <- sweep(Phi, 1L, 1 / sqrt(v), "*")
     
     row_names <- colnames(Sigma)
     col_names <- paste0("SV", seq_len(k))
@@ -88,7 +92,7 @@ SVD <- function(Sigma,
     result$decomp <- list(
       U = U,
       D = D,
-      inv_tW = diag(sqrt(D), nrow = k, ncol = k) %*% t(U)
+      inv_tW = sweep(t(U), 1L, sqrt(D), "*")
     )
   }
   

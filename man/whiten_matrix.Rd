@@ -7,7 +7,12 @@
 whiten_matrix(
   X,
   center = TRUE,
-  method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky")
+  method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky"),
+  n_comp = NULL,
+  var_threshold = NULL,
+  lambda = "auto",
+  lambda_method = c("oas", "lw"),
+  sign_reference = NULL
 )
 }
 \arguments{
@@ -16,7 +21,23 @@ whiten_matrix(
 \item{center}{Logical; whether to subtract the column means.}
 
 \item{method}{Whitening method; one of \code{"SVD"}, \code{"ZCA"},
-\code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.}
+\code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.
+Underscore aliases \code{"ZCA_cor"} and \code{"PCA_cor"} are also accepted.}
+
+\item{n_comp}{Integer (optional); number of components to keep for
+\code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
+
+\item{var_threshold}{Numeric in (0, 1]; cumulative explained-variance
+threshold for automatic \code{n_comp} selection.}
+
+\item{lambda}{Numeric in [0, 1] or \code{"auto"}; covariance shrinkage
+strength.}
+
+\item{lambda_method}{Method used when \code{lambda = "auto"}.
+One of \code{"oas"} or \code{"lw"}.}
+
+\item{sign_reference}{Optional reference vectors used for stable component
+sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
 }
 \value{
 A list with components:
@@ -24,6 +45,12 @@ A list with components:
   \item{W}{Whitening matrix.}
   \item{center}{Centering vector used.}
   \item{method}{Method name.}
+  \item{n_comp}{Number of retained components (if applicable).}
+  \item{var_threshold}{Variance threshold used for automatic selection.}
+  \item{explained_var}{Cumulative explained variance of retained components.}
+  \item{lambda}{Shrinkage value used during fitting.}
+  \item{lambda_method}{Automatic shrinkage estimator, if used.}
+  \item{model}{The fitted \code{whiten_model} object.}
 }
 \description{
 Convenience wrapper around \code{whiten_model()} that fits

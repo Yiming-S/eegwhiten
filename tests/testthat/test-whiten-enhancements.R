@@ -187,3 +187,65 @@ test_that("print summary and plot methods are available", {
   expect_equal(nrow(dev), m$dim_out)
   expect_equal(ncol(dev), m$dim_out)
 })
+
+test_that("method aliases with underscores are supported", {
+  set.seed(303)
+  X <- matrix(rnorm(220 * 6), 220, 6)
+
+  m1 <- whiten_model(X, method = "PCA-cor", lambda = 0)
+  m2 <- whiten_model(X, method = "PCA_cor", lambda = 0)
+  expect_equal(m2$method, "PCA-cor")
+  expect_equal(m1$W, m2$W, tolerance = 1e-10)
+
+  z1 <- whiten_model(X, method = "ZCA-cor", lambda = 0)
+  z2 <- whiten_model(X, method = "ZCA_cor", lambda = 0)
+  expect_equal(z2$method, "ZCA-cor")
+  expect_equal(z1$W, z2$W, tolerance = 1e-10)
+})
+
+test_that("whiten_fit supports correlation-based methods", {
+  set.seed(404)
+  X <- matrix(rnorm(300 * 7), 300, 7)
+  S <- cov(X)
+
+  W_pca_cor <- whiten_fit(S, method = "PCA-cor", var_threshold = 0.9)
+  W_zca_cor <- whiten_fit(S, method = "ZCA-cor")
+  W_pca_cor_alias <- whiten_fit(S, method = "PCA_cor", var_threshold = 0.9)
+
+  expect_true(is.matrix(W_pca_cor))
+  expect_true(is.matrix(W_zca_cor))
+  expect_equal(ncol(W_pca_cor), ncol(S))
+  expect_equal(dim(W_zca_cor), dim(S))
+  expect_equal(W_pca_cor, W_pca_cor_alias, tolerance = 1e-10)
+})
+
+test_that("whiten_batch parallel mode matches sequential mode", {
+  skip_if(.Platform$OS.type != "unix")
+  set.seed(505)
+  X1 <- matrix(rnorm(180 * 6), 180, 6)
+  X2 <- matrix(rnorm(160 * 6), 160, 6)
+  X3 <- matrix(rnorm(150 * 6), 150, 6)
+  data_list <- list(X1, X2, X3)
+
+  seq_out <- suppressWarnings(whiten_batch(
+    data_list,
+    method = "PCA",
+    n_comp = 4,
+    lambda = 0.1,
+    parallel = FALSE
+  ))
+  par_out <- suppressWarnings(whiten_batch(
+    data_list,
+    method = "PCA",
+    n_comp = 4,
+    lambda = 0.1,
+    parallel = TRUE,
+    n_cores = 2
+  ))
+
+  expect_equal(length(seq_out), length(par_out))
+  for (i in seq_along(seq_out)) {
+    expect_equal(seq_out[[i]]$Z, par_out[[i]]$Z, tolerance = 1e-10)
+    expect_equal(seq_out[[i]]$W, par_out[[i]]$W, tolerance = 1e-10)
+  }
+})

@@ -7,7 +7,20 @@
 whiten_batch(
   X_list,
   center = TRUE,
-  method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky")
+  method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky"),
+  n_comp = NULL,
+  var_threshold = NULL,
+  lambda = "auto",
+  lambda_method = c("oas", "lw"),
+  sign_reference = NULL,
+  shared_model = FALSE,
+  mode = c("independent", "shared_model", "ea"),
+  ea_mean = c("riemann", "logeuclid", "euclid"),
+  ea_input = c("auto", "raw", "cov"),
+  ea_tol = 1e-06,
+  ea_max_iter = 50,
+  parallel = FALSE,
+  n_cores = 1L
 )
 }
 \arguments{
@@ -16,7 +29,48 @@ whiten_batch(
 \item{center}{Logical; whether to subtract the column means in each matrix.}
 
 \item{method}{Whitening method; one of \code{"SVD"}, \code{"ZCA"},
-\code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.}
+\code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.
+Underscore aliases \code{"ZCA_cor"} and \code{"PCA_cor"} are also accepted.}
+
+\item{n_comp}{Integer (optional); number of components to keep for
+\code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
+
+\item{var_threshold}{Numeric in (0, 1]; cumulative explained-variance
+threshold for automatic \code{n_comp} selection.}
+
+\item{lambda}{Numeric in [0, 1] or \code{"auto"}; covariance shrinkage
+strength.}
+
+\item{lambda_method}{Method used when \code{lambda = "auto"}.
+One of \code{"oas"} or \code{"lw"}.}
+
+\item{sign_reference}{Optional reference vectors used for stable component
+sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
+
+\item{shared_model}{Logical; if \code{TRUE}, fit one model on the first
+matrix and apply it to all matrices in \code{X_list}. If \code{FALSE},
+each matrix is whitened independently.}
+
+\item{mode}{Batch whitening strategy:
+\code{"independent"} (fit each matrix separately),
+\code{"shared_model"} (fit once on first matrix), or
+\code{"ea"} (Euclidean Alignment with global reference covariance).}
+
+\item{ea_mean}{Mean type used in \code{"ea"} mode; one of
+\code{"riemann"}, \code{"logeuclid"}, or \code{"euclid"}.}
+
+\item{ea_input}{Input interpretation in \code{"ea"} mode; one of
+\code{"auto"}, \code{"raw"}, or \code{"cov"}.}
+
+\item{ea_tol}{Tolerance for Riemannian mean convergence in \code{"ea"} mode.}
+
+\item{ea_max_iter}{Maximum iterations for Riemannian mean in \code{"ea"} mode.}
+
+\item{parallel}{Logical; if \code{TRUE}, use multicore processing for
+per-matrix operations on Unix-like systems.}
+
+\item{n_cores}{Integer; number of worker processes when
+\code{parallel = TRUE}.}
 }
 \value{
 A list of results as returned by \code{whiten_matrix()}.

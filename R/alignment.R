@@ -79,7 +79,7 @@ euclidean_alignment <- function(X_list,
 
     covariances <- lapply(X_list, function(x) {
       x_use <- if (center) sweep(x, 2, colMeans(x), "-") else x
-      cov(x_use)
+      stats::cov(x_use)
     })
   } else {
     p <- ncol(X_list[[1]])

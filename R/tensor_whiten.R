@@ -59,7 +59,7 @@ predict_tensor <- function(model, X_tensor) {
     stop(sprintf("Channel mismatch: model expects %d channels, tensor has %d.", model$dim_in, tm$n_channels))
   }
 
-  Z_mat <- predict(model, tm$X_mat)
+  Z_mat <- stats::predict(model, tm$X_mat)
   Z_perm <- array(Z_mat, dim = c(tm$n_trials, tm$n_time, model$dim_out))
   aperm(Z_perm, c(1, 3, 2))
 }

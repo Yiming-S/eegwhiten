@@ -22,14 +22,16 @@
 #'
 #' @export
 ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
-  .check_symmetric_pd(Sigma, require_pd = TRUE)
+  if (!isTRUE(attr(Sigma, ".checked_spd"))) {
+    .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
   
   v <- diag(Sigma)
   if (any(v <= 0)) {
     stop("Diagonal elements of Sigma must be positive.")
   }
   
-  R <- cov2cor(Sigma)
+  R <- stats::cov2cor(Sigma)
   
   eR    <- eigen(R, symmetric = TRUE)
   theta <- eR$values
@@ -43,7 +45,8 @@ ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE)
   
   if (returnW) {
     # W: components x original features
-    W <- G %*% diag(1 / sqrt(theta)) %*% t(G) %*% diag(1 / sqrt(v))
+    W <- sweep(G, 2L, 1 / sqrt(theta), "*") %*% t(G)
+    W <- sweep(W, 2L, 1 / sqrt(v), "*")
     result$W <- .set_matrix_attr(
       W,
       row_names = paste0("L", seq_len(ncol(Sigma))),
@@ -53,8 +56,8 @@ ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE)
   }
   
   if (PhiPsi) {
-    Psi <- G %*% diag(sqrt(theta)) %*% t(G)
-    Phi <- diag(sqrt(v)) %*% Psi
+    Psi <- sweep(G, 2L, sqrt(theta), "*") %*% t(G)
+    Phi <- sweep(Psi, 1L, sqrt(v), "*")
     
     row_names <- colnames(Sigma)
     col_names <- paste0("L", seq_len(ncol(Sigma)))
@@ -64,11 +67,13 @@ ZCA_cor <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE)
   }
 
   if (return_decomp) {
+    inv_tW <- sweep(G, 2L, sqrt(theta), "*") %*% t(G)
+    inv_tW <- sweep(inv_tW, 2L, sqrt(v), "*")
     result$decomp <- list(
       U = G,
       D = theta,
       scale_diag = v,
-      inv_tW = G %*% diag(sqrt(theta)) %*% t(G) %*% diag(sqrt(v))
+      inv_tW = inv_tW
     )
   }
   

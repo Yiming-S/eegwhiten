@@ -4,7 +4,7 @@
 \alias{Cholesky}
 \title{Cholesky-based whitening on a covariance matrix}
 \usage{
-Cholesky(Sigma, returnW = TRUE, PhiPsi = TRUE)
+Cholesky(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE)
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}
@@ -13,6 +13,9 @@ Cholesky(Sigma, returnW = TRUE, PhiPsi = TRUE)
 
 \item{PhiPsi}{Logical; if TRUE, return factor loadings \code{Phi}
 and standardized loadings \code{Psi}.}
+
+\item{return_decomp}{Logical; if TRUE, return decomposition terms used for
+fast inverse transformation.}
 }
 \value{
 A list with some of the elements:

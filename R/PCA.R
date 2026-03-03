@@ -26,7 +26,9 @@ PCA <- function(Sigma,
                 returnW = TRUE,
                 PhiPsi = TRUE,
                 return_decomp = FALSE) {
-  .check_symmetric_pd(Sigma, require_pd = TRUE)
+  if (!isTRUE(attr(Sigma, ".checked_spd"))) {
+    .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
   
   v <- diag(Sigma)
   if (any(v <= 0)) {
@@ -62,7 +64,7 @@ PCA <- function(Sigma,
     # W: [k x d]. 
     # Transforms X (n x d) -> Z (n x k) via Z = X %*% t(W)
     # W = D^-1/2 * U^T
-    W <- tcrossprod(diag(1 / sqrt(lambda), nrow = k, ncol = k), U)
+    W <- sweep(t(U), 1L, 1 / sqrt(lambda), "*")
     
     result$W <- .set_matrix_attr(
       W,
@@ -74,11 +76,11 @@ PCA <- function(Sigma,
   
   if (PhiPsi) {
     # Phi: Loadings in original space [d x k]
-    Phi <- U %*% diag(sqrt(lambda), nrow = k, ncol = k)
+    Phi <- sweep(U, 2L, sqrt(lambda), "*")
     
     # Psi: Standardized loadings [d x k]
     # Psi_ij = Phi_ij / sigma_i
-    Psi <- diag(1 / sqrt(v)) %*% Phi
+    Psi <- sweep(Phi, 1L, 1 / sqrt(v), "*")
     
     row_names <- colnames(Sigma)
     col_names <- paste0("PC", seq_len(k))
@@ -91,7 +93,7 @@ PCA <- function(Sigma,
     result$decomp <- list(
       U = U,
       D = lambda,
-      inv_tW = diag(sqrt(lambda), nrow = k, ncol = k) %*% t(U)
+      inv_tW = sweep(t(U), 1L, sqrt(lambda), "*")
     )
   }
   

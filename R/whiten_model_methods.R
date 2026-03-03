@@ -54,7 +54,7 @@ summary.whiten_model <- function(object, data = NULL, Z = NULL, ...) {
   }
 
   if (is.null(Z) && !is.null(data)) {
-    Z <- predict(object, data)
+    Z <- stats::predict(object, data)
   }
 
   diagnostics <- NULL
@@ -132,13 +132,13 @@ plot.whiten_model <- function(x, data = NULL, Z = NULL, main = NULL, ...) {
     if (is.null(data)) {
       stop("Provide either Z or data to plot whitening diagnostics.")
     }
-    Z <- predict(x, data)
+    Z <- stats::predict(x, data)
   }
   if (!is.matrix(Z) || !is.numeric(Z) || any(!is.finite(Z))) {
     stop("Z must be a finite numeric matrix.")
   }
 
-  S <- cov(Z)
+  S <- stats::cov(Z)
   d <- ncol(S)
   dev <- S - diag(d)
 

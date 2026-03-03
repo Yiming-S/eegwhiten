@@ -43,10 +43,59 @@
   invisible(var_threshold)
 }
 
+# Canonicalize user-facing whitening method names
+.normalize_whiten_method <- function(method) {
+  if (!is.character(method) || length(method) != 1L || is.na(method)) {
+    stop("method must be a single non-missing character string.")
+  }
+
+  aliases <- c(
+    "SVD" = "SVD",
+    "svd" = "SVD",
+    "ZCA" = "ZCA",
+    "zca" = "ZCA",
+    "ZCA-cor" = "ZCA-cor",
+    "ZCA_cor" = "ZCA-cor",
+    "zca-cor" = "ZCA-cor",
+    "zca_cor" = "ZCA-cor",
+    "PCA" = "PCA",
+    "pca" = "PCA",
+    "PCA-cor" = "PCA-cor",
+    "PCA_cor" = "PCA-cor",
+    "pca-cor" = "PCA-cor",
+    "pca_cor" = "PCA-cor",
+    "Cholesky" = "Cholesky",
+    "cholesky" = "Cholesky"
+  )
+
+  out <- aliases[[trimws(method)]]
+  if (is.null(out)) {
+    stop("Unknown method. Use one of: SVD, ZCA, ZCA-cor, PCA, PCA-cor, Cholesky.")
+  }
+  out
+}
+
+# Map canonical method names to concrete function names
+.method_to_function <- function(method) {
+  method <- .normalize_whiten_method(method)
+  switch(
+    method,
+    "PCA-cor" = "PCA_cor",
+    "ZCA-cor" = "ZCA_cor",
+    method
+  )
+}
+
+# Methods that support dimensionality reduction
+.is_reduction_method <- function(method) {
+  .normalize_whiten_method(method) %in% c("PCA", "PCA-cor", "SVD")
+}
+
 # Return component spectrum used for dimensionality decisions
 .component_spectrum <- function(Sigma, method) {
+  method <- .normalize_whiten_method(method)
   if (method == "PCA-cor") {
-    vals <- eigen(cov2cor(Sigma), symmetric = TRUE, only.values = TRUE)$values
+    vals <- eigen(stats::cov2cor(Sigma), symmetric = TRUE, only.values = TRUE)$values
   } else if (method %in% c("PCA", "SVD")) {
     vals <- eigen(Sigma, symmetric = TRUE, only.values = TRUE)$values
   } else {
@@ -253,7 +302,7 @@
 #' @export
 check_condition <- function(X) {
   if(!is.matrix(X)) stop("X must be a matrix")
-  ev <- eigen(cov(X), symmetric = TRUE, only.values = TRUE)$values
+  ev <- eigen(stats::cov(X), symmetric = TRUE, only.values = TRUE)$values
   # Filter small/negative values for ratio calculation
   ev <- ev[ev > 0]
   if(length(ev) == 0) return(Inf)

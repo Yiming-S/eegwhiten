@@ -11,9 +11,8 @@ Description:
     are channels or features. Provides model objects for reusing
     whitening parameters across datasets, inverse transforms, and
     basic diagnostics.
-License: MIT
+License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 Depends: R (>= 3.6.0)
 Suggests:
     testthat (>= 3.0.0)

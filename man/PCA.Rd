@@ -4,16 +4,29 @@
 \alias{PCA}
 \title{PCA-based whitening on the covariance matrix}
 \usage{
-PCA(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE)
+PCA(
+  Sigma,
+  n_comp = NULL,
+  sign_ref = NULL,
+  returnW = TRUE,
+  PhiPsi = TRUE,
+  return_decomp = FALSE
+)
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}
 
 \item{n_comp}{Integer; number of components to keep.}
 
+\item{sign_ref}{Optional reference vectors used to stabilize component
+signs across runs. Must have compatible dimensions with eigenvectors.}
+
 \item{returnW}{Logical; if TRUE, return the whitening matrix \code{W}.}
 
 \item{PhiPsi}{Logical; if TRUE, return factor loadings.}
+
+\item{return_decomp}{Logical; if TRUE, return decomposition terms used for
+fast inverse transformation.}
 }
 \description{
 Perform whitening based on the eigen-decomposition.

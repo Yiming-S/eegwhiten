@@ -7,15 +7,30 @@
 whiten_fit(
   Sigma,
   method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky"),
-  n_comp = NULL
+  n_comp = NULL,
+  var_threshold = NULL,
+  lambda = 0,
+  sign_reference = NULL
 )
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}
 
-\item{method}{Whitening method.}
+\item{method}{Whitening method.
+Underscore aliases \code{"ZCA_cor"} and \code{"PCA_cor"} are also accepted.}
 
-\item{n_comp}{Integer (optional); Number of components to keep (for PCA/SVD).}
+\item{n_comp}{Integer (optional); Number of components to keep
+(for PCA/PCA-cor/SVD).}
+
+\item{var_threshold}{Numeric in (0, 1]; cumulative explained variance
+threshold used to choose \code{n_comp} automatically for
+\code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
+
+\item{lambda}{Numeric in [0, 1]; optional shrinkage applied directly to
+\code{Sigma} toward a scaled identity target before whitening.}
+
+\item{sign_reference}{Optional reference vectors used for stable component
+sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
 }
 \value{
 Whitening matrix \code{W}.

@@ -4,17 +4,30 @@
 \alias{PCA_cor}
 \title{PCA-based whitening on the correlation matrix}
 \usage{
-PCA_cor(Sigma, n_comp = NULL, returnW = TRUE, PhiPsi = TRUE)
+PCA_cor(
+  Sigma,
+  n_comp = NULL,
+  sign_ref = NULL,
+  returnW = TRUE,
+  PhiPsi = TRUE,
+  return_decomp = FALSE
+)
 }
 \arguments{
 \item{Sigma}{Symmetric positive-definite covariance matrix.}
 
 \item{n_comp}{Integer; number of components to keep. If NULL, keeps all.}
 
+\item{sign_ref}{Optional reference vectors used to stabilize component
+signs across runs.}
+
 \item{returnW}{Logical; if TRUE, return the whitening matrix \code{W}.}
 
 \item{PhiPsi}{Logical; if TRUE, return factor loadings \code{Phi}
 and standardized loadings \code{Psi}.}
+
+\item{return_decomp}{Logical; if TRUE, return decomposition terms used for
+fast inverse transformation.}
 }
 \value{
 A list with some of the elements:

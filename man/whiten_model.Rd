@@ -9,7 +9,10 @@ whiten_model(
   center = TRUE,
   method = c("SVD", "ZCA", "ZCA-cor", "PCA", "PCA-cor", "Cholesky"),
   n_comp = NULL,
-  lambda = 0
+  var_threshold = NULL,
+  lambda = "auto",
+  lambda_method = c("oas", "lw"),
+  sign_reference = NULL
 )
 }
 \arguments{
@@ -19,15 +22,27 @@ whiten_model(
 computing the covariance.}
 
 \item{method}{Whitening method; one of \code{"SVD"}, \code{"ZCA"},
-\code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.}
+\code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.
+Underscore aliases \code{"ZCA_cor"} and \code{"PCA_cor"} are also accepted.}
 
 \item{n_comp}{Integer (optional); Number of components to keep.
 Only applicable for "PCA", "PCA-cor", and "SVD".}
 
-\item{lambda}{Numeric (0 to 1); Regularization parameter for covariance shrinkage.
+\item{var_threshold}{Numeric in (0, 1]; cumulative explained variance
+threshold for automatic component selection. Ignored by non-reduction
+methods.}
+
+\item{lambda}{Numeric (0 to 1) or \code{"auto"}; regularization parameter
+for covariance shrinkage.
 0 = No regularization (Empirical covariance).
 1 = Full shrinkage to target (scaled Identity).
 Values between 0 and 1 mix the two. Useful for high-dimensional/low-sample EEG data.}
+
+\item{lambda_method}{Method used when \code{lambda = "auto"}.
+One of \code{"oas"} or \code{"lw"}.}
+
+\item{sign_reference}{Optional reference vectors used for stable component
+sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
 }
 \value{
 An object of class \code{"whiten_model"}.

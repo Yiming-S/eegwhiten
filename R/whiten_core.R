@@ -12,7 +12,9 @@
 #'
 #' @param Sigma Symmetric positive-definite covariance matrix.
 #' @param method Whitening method.
-#' @param n_comp Integer (optional); Number of components to keep (for PCA/SVD).
+#'   Underscore aliases \code{"ZCA_cor"} and \code{"PCA_cor"} are also accepted.
+#' @param n_comp Integer (optional); Number of components to keep
+#'   (for PCA/PCA-cor/SVD).
 #' @param var_threshold Numeric in (0, 1]; cumulative explained variance
 #'   threshold used to choose \code{n_comp} automatically for
 #'   \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
@@ -31,10 +33,11 @@ whiten_fit <- function(Sigma,
                        var_threshold = NULL,
                        lambda = 0,
                        sign_reference = NULL) {
-  method <- match.arg(method)
+  if (length(method) > 1L) method <- method[[1L]]
+  method <- .normalize_whiten_method(method)
   .check_var_threshold(var_threshold)
   .check_unit_interval(lambda, "lambda")
-  reduction_methods <- c("PCA", "PCA-cor", "SVD")
+  is_reduction <- .is_reduction_method(method)
 
   if (!is.null(n_comp)) {
     if (!is.numeric(n_comp) || length(n_comp) != 1L || !is.finite(n_comp)) {
@@ -57,9 +60,20 @@ whiten_fit <- function(Sigma,
     warning(sprintf("Sigma is ill-conditioned (condition number ~ %.3e); consider lambda > 0 for stable whitening.", cond_num))
   }
 
-  if (method %in% reduction_methods) {
+  S <- Sigma
+  if (lambda > 0) {
+    target_val <- mean(diag(Sigma))
+    target_mat <- diag(target_val, d)
+    S <- (1 - lambda) * Sigma + lambda * target_mat
+  }
+
+  if (is_reduction) {
     if (is.null(n_comp) && !is.null(var_threshold)) {
-      spectrum <- .component_spectrum(Sigma, method)
+      spectrum <- if (method %in% c("PCA", "SVD") && lambda == 0) {
+        pmax(eig, 0)
+      } else {
+        .component_spectrum(S, method)
+      }
       n_comp <- .n_comp_from_threshold(spectrum, var_threshold)
     }
     if (!is.null(n_comp) && (n_comp < 1L || n_comp > d)) {
@@ -74,27 +88,20 @@ whiten_fit <- function(Sigma,
       warning("var_threshold is ignored for ZCA/ZCA-cor/Cholesky.")
     }
   }
-  
-  # Prepare arguments
-  S <- Sigma
-  if (lambda > 0) {
-    target_val <- mean(diag(Sigma))
-    target_mat <- diag(target_val, d)
-    S <- (1 - lambda) * Sigma + lambda * target_mat
-  }
+  attr(S, ".checked_spd") <- TRUE
 
   args <- list(Sigma = S, returnW = TRUE, PhiPsi = FALSE)
   
   # Only pass n_comp to methods that support it to avoid "unused argument" errors
-  if (method %in% c("PCA", "PCA-cor", "SVD") && !is.null(n_comp)) {
+  if (is_reduction && !is.null(n_comp)) {
     args$n_comp <- n_comp
   }
-  if (method %in% c("PCA", "PCA-cor", "SVD") && !is.null(sign_reference)) {
+  if (is_reduction && !is.null(sign_reference)) {
     args$sign_ref <- sign_reference
   }
   
   # Call the specific function (e.g., PCA(Sigma, ...))
-  res <- do.call(method, args)
+  res <- do.call(.method_to_function(method), args)
   
   if (is.null(res$W)) stop("Whitening matrix W is NULL.")
   res$W
@@ -112,6 +119,7 @@ whiten_fit <- function(Sigma,
 #'   computing the covariance.
 #' @param method Whitening method; one of \code{"SVD"}, \code{"ZCA"},
 #'   \code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.
+#'   Underscore aliases \code{"ZCA_cor"} and \code{"PCA_cor"} are also accepted.
 #' @param n_comp Integer (optional); Number of components to keep.
 #'   Only applicable for "PCA", "PCA-cor", and "SVD".
 #' @param var_threshold Numeric in (0, 1]; cumulative explained variance
@@ -138,9 +146,10 @@ whiten_model <- function(X, center = TRUE,
                          lambda = "auto",
                          lambda_method = c("oas", "lw"),
                          sign_reference = NULL) {
-  method <- match.arg(method)
+  if (length(method) > 1L) method <- method[[1L]]
+  method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
-  reduction_methods <- c("PCA", "PCA-cor", "SVD")
+  is_reduction <- .is_reduction_method(method)
   .check_var_threshold(var_threshold)
 
   if (!is.matrix(X)) stop("X must be a matrix.")
@@ -179,7 +188,7 @@ whiten_model <- function(X, center = TRUE,
   if (!is.null(n_comp) && !is.null(var_threshold)) {
     stop("Specify only one of n_comp or var_threshold.")
   }
-  if (!(method %in% reduction_methods)) {
+  if (!is_reduction) {
     if (!is.null(n_comp)) {
       warning("n_comp is ignored for ZCA/ZCA-cor/Cholesky. Use PCA/PCA-cor/SVD for dimension reduction.")
       n_comp <- NULL
@@ -190,7 +199,7 @@ whiten_model <- function(X, center = TRUE,
     }
   }
   if (!is.null(sign_reference)) {
-    if (!(method %in% reduction_methods)) {
+    if (!is_reduction) {
       warning("sign_reference is ignored for ZCA/ZCA-cor/Cholesky.")
       sign_reference <- NULL
     } else {
@@ -218,11 +227,6 @@ whiten_model <- function(X, center = TRUE,
   if (lambda_auto) {
     lambda <- if (lambda_method == "oas") .lambda_oas(Xc) else .lambda_lw(Xc)
   }
-  eig_raw <- eigen(.symmetrize(S), symmetric = TRUE, only.values = TRUE)$values
-  cond_raw <- max(eig_raw) / min(pmax(eig_raw, .Machine$double.eps))
-  if (lambda == 0 && is.finite(cond_raw) && cond_raw > 1e8) {
-    warning(sprintf("Sample covariance is ill-conditioned (condition number ~ %.3e); consider lambda='auto' or lambda > 0.", cond_raw))
-  }
 
   # Apply shrinkage toward scaled identity
   if (lambda > 0) {
@@ -231,10 +235,21 @@ whiten_model <- function(X, center = TRUE,
     S <- (1 - lambda) * S + lambda * target_mat
   }
 
+  eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE)
+  cond_raw <- max(eig_shrunk) / min(pmax(eig_shrunk, .Machine$double.eps))
+  if (lambda == 0 && is.finite(cond_raw) && cond_raw > 1e8) {
+    warning(sprintf("Sample covariance is ill-conditioned (condition number ~ %.3e); consider lambda='auto' or lambda > 0.", cond_raw))
+  }
+  attr(S, ".checked_spd") <- TRUE
+
   n_comp_final <- n_comp
   explained_var <- NA_real_
-  if (method %in% reduction_methods) {
-    spectrum <- .component_spectrum(S, method)
+  if (is_reduction) {
+    spectrum <- if (method %in% c("PCA", "SVD")) {
+      pmax(eig_shrunk, 0)
+    } else {
+      .component_spectrum(S, method)
+    }
     if (is.null(n_comp_final) && !is.null(var_threshold)) {
       n_comp_final <- .n_comp_from_threshold(spectrum, var_threshold)
     }
@@ -246,14 +261,14 @@ whiten_model <- function(X, center = TRUE,
   
   # 3. Fit Whitening Matrix
   fit_args <- list(Sigma = S, returnW = TRUE, PhiPsi = FALSE, return_decomp = TRUE)
-  if (method %in% reduction_methods && !is.null(n_comp_final)) {
+  if (is_reduction && !is.null(n_comp_final)) {
     fit_args$n_comp <- n_comp_final
   }
-  if (method %in% reduction_methods && !is.null(sign_reference)) {
+  if (is_reduction && !is.null(sign_reference)) {
     fit_args$sign_ref <- sign_reference
   }
   
-  res <- do.call(method, fit_args)
+  res <- do.call(.method_to_function(method), fit_args)
   W   <- res$W
   decomp <- if (!is.null(res$decomp)) res$decomp else list()
   inv_tW <- if (!is.null(decomp$inv_tW)) decomp$inv_tW else .pinv(t(W))
@@ -410,7 +425,7 @@ check_whitening <- function(Z) {
   if (!is.numeric(Z)) stop("Z must be a numeric matrix.")
   if (any(!is.finite(Z))) stop("Z must contain only finite values.")
   
-  S <- cov(Z)
+  S <- stats::cov(Z)
   d <- ncol(Z)
   
   diag_vals  <- diag(S)

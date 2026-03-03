@@ -13,6 +13,7 @@
 #' @param center Logical; whether to subtract the column means.
 #' @param method Whitening method; one of \code{"SVD"}, \code{"ZCA"},
 #'   \code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.
+#'   Underscore aliases \code{"ZCA_cor"} and \code{"PCA_cor"} are also accepted.
 #' @param n_comp Integer (optional); number of components to keep for
 #'   \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
 #' @param var_threshold Numeric in (0, 1]; cumulative explained-variance
@@ -52,7 +53,8 @@ whiten_matrix <- function(X, center = TRUE,
                           lambda = "auto",
                           lambda_method = c("oas", "lw"),
                           sign_reference = NULL) {
-  method <- match.arg(method)
+  if (length(method) > 1L) method <- method[[1L]]
+  method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
   
   model <- whiten_model(
@@ -65,7 +67,7 @@ whiten_matrix <- function(X, center = TRUE,
     lambda_method = lambda_method,
     sign_reference = sign_reference
   )
-  Z     <- predict(model, X)
+  Z     <- stats::predict(model, X)
   
   list(
     Z      = Z,
@@ -92,6 +94,7 @@ whiten_matrix <- function(X, center = TRUE,
 #' @param center Logical; whether to subtract the column means in each matrix.
 #' @param method Whitening method; one of \code{"SVD"}, \code{"ZCA"},
 #'   \code{"ZCA-cor"}, \code{"PCA"}, \code{"PCA-cor"}, \code{"Cholesky"}.
+#'   Underscore aliases \code{"ZCA_cor"} and \code{"PCA_cor"} are also accepted.
 #' @param n_comp Integer (optional); number of components to keep for
 #'   \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
 #' @param var_threshold Numeric in (0, 1]; cumulative explained-variance
@@ -115,6 +118,10 @@ whiten_matrix <- function(X, center = TRUE,
 #'   \code{"auto"}, \code{"raw"}, or \code{"cov"}.
 #' @param ea_tol Tolerance for Riemannian mean convergence in \code{"ea"} mode.
 #' @param ea_max_iter Maximum iterations for Riemannian mean in \code{"ea"} mode.
+#' @param parallel Logical; if \code{TRUE}, use multicore processing for
+#'   per-matrix operations on Unix-like systems.
+#' @param n_cores Integer; number of worker processes when
+#'   \code{parallel = TRUE}.
 #'
 #' @return A list of results as returned by \code{whiten_matrix()}.
 #'
@@ -132,8 +139,11 @@ whiten_batch <- function(X_list, center = TRUE,
                          ea_mean = c("riemann", "logeuclid", "euclid"),
                          ea_input = c("auto", "raw", "cov"),
                          ea_tol = 1e-6,
-                         ea_max_iter = 50) {
-  method <- match.arg(method)
+                         ea_max_iter = 50,
+                         parallel = FALSE,
+                         n_cores = 1L) {
+  if (length(method) > 1L) method <- method[[1L]]
+  method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
   mode <- match.arg(mode)
   ea_mean <- match.arg(ea_mean)
@@ -143,6 +153,25 @@ whiten_batch <- function(X_list, center = TRUE,
   if (!is.logical(shared_model) || length(shared_model) != 1L || is.na(shared_model)) {
     stop("shared_model must be TRUE or FALSE.")
   }
+  if (!is.logical(parallel) || length(parallel) != 1L || is.na(parallel)) {
+    stop("parallel must be TRUE or FALSE.")
+  }
+  if (!is.numeric(n_cores) || length(n_cores) != 1L || !is.finite(n_cores) || n_cores < 1) {
+    stop("n_cores must be a positive integer.")
+  }
+  n_cores <- as.integer(n_cores)
+  if (parallel && .Platform$OS.type != "unix") {
+    warning("parallel = TRUE is only supported on Unix-like systems; falling back to sequential processing.")
+    parallel <- FALSE
+  }
+
+  apply_list <- function(data, fun) {
+    if (!parallel || n_cores <= 1L || length(data) <= 1L) {
+      return(lapply(data, fun))
+    }
+    parallel::mclapply(data, fun, mc.cores = n_cores)
+  }
+
   if (shared_model && identical(mode, "independent")) {
     mode <- "shared_model"
   }
@@ -160,7 +189,7 @@ whiten_batch <- function(X_list, center = TRUE,
       max_iter = ea_max_iter
     )
     
-    out <- lapply(ea$aligned, function(Z) {
+    out <- apply_list(ea$aligned, function(Z) {
       list(
         Z = Z,
         W = ea$W,
@@ -193,8 +222,8 @@ whiten_batch <- function(X_list, center = TRUE,
       sign_reference = sign_reference
     )
     
-    out <- lapply(X_list, function(X) {
-      Z <- predict(model, X)
+    out <- apply_list(X_list, function(X) {
+      Z <- stats::predict(model, X)
       list(
         Z      = Z,
         W      = model$W,
@@ -214,7 +243,7 @@ whiten_batch <- function(X_list, center = TRUE,
     return(out)
   }
   
-  lapply(
+  apply_list(
     X_list,
     function(X) {
       whiten_matrix(

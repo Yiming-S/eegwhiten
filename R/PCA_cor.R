@@ -33,14 +33,16 @@ PCA_cor <- function(Sigma,
                     returnW = TRUE,
                     PhiPsi = TRUE,
                     return_decomp = FALSE) {
-  .check_symmetric_pd(Sigma, require_pd = TRUE)
+  if (!isTRUE(attr(Sigma, ".checked_spd"))) {
+    .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
   
   v <- diag(Sigma)
   if (any(v <= 0)) {
     stop("Diagonal elements of Sigma must be positive.")
   }
   
-  R <- cov2cor(Sigma)
+  R <- stats::cov2cor(Sigma)
   
   # Diagonal of R should be numerically 1
   if (any(abs(diag(R) - 1) > sqrt(.Machine$double.eps))) {
@@ -80,7 +82,8 @@ PCA_cor <- function(Sigma,
     # Dimensions: (k x k) * (k x d) * (d x d) = (k x d)
     # Using diag(..., nrow=k, ncol=k) ensures correct behavior even if k=1
     
-    W <- diag(1 / sqrt(theta), nrow = k, ncol = k) %*% t(G) %*% diag(1 / sqrt(v))
+    W <- sweep(t(G), 1L, 1 / sqrt(theta), "*")
+    W <- sweep(W, 2L, 1 / sqrt(v), "*")
     
     result$W <- .set_matrix_attr(
       W,
@@ -92,10 +95,10 @@ PCA_cor <- function(Sigma,
   
   if (PhiPsi) {
     # Psi (Standardized Loadings): G * Theta^1/2
-    Psi <- G %*% diag(sqrt(theta), nrow = k, ncol = k)
+    Psi <- sweep(G, 2L, sqrt(theta), "*")
     
     # Phi (Loadings): V^1/2 * Psi
-    Phi <- diag(sqrt(v)) %*% Psi
+    Phi <- sweep(Psi, 1L, sqrt(v), "*")
     
     row_names <- colnames(Sigma)
     col_names <- paste0("PC", seq_len(k))
@@ -105,11 +108,13 @@ PCA_cor <- function(Sigma,
   }
 
   if (return_decomp) {
+    inv_tW <- sweep(t(G), 1L, sqrt(theta), "*")
+    inv_tW <- sweep(inv_tW, 2L, sqrt(v), "*")
     result$decomp <- list(
       U = G,
       D = theta,
       scale_diag = v,
-      inv_tW = diag(sqrt(theta), nrow = k, ncol = k) %*% t(G) %*% diag(sqrt(v))
+      inv_tW = inv_tW
     )
   }
   

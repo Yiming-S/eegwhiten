@@ -23,7 +23,9 @@
 #'
 #' @export
 ZCA <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
-  .check_symmetric_pd(Sigma, require_pd = TRUE)
+  if (!isTRUE(attr(Sigma, ".checked_spd"))) {
+    .check_symmetric_pd(Sigma, require_pd = TRUE)
+  }
   
   v <- diag(Sigma)
   
@@ -38,7 +40,7 @@ ZCA <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
   result <- list()
   
   # Precompute U * diag(1/sqrt(lambda)) * U^T
-  U_diag <- U %*% diag(1 / sqrt(lambda)) %*% t(U)
+  U_diag <- sweep(U, 2L, 1 / sqrt(lambda), "*") %*% t(U)
   
   if (returnW) {
     W <- U_diag
@@ -52,7 +54,7 @@ ZCA <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
   
   if (PhiPsi) {
     Phi <- U_diag                          # loadings in original space
-    Psi <- diag(1 / sqrt(v)) %*% Phi       # standardized loadings
+    Psi <- sweep(Phi, 1L, 1 / sqrt(v), "*") # standardized loadings
     
     row_names <- colnames(Sigma)
     col_names <- paste0("L", seq_len(ncol(Sigma)))
@@ -65,7 +67,7 @@ ZCA <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
     result$decomp <- list(
       U = U,
       D = lambda,
-      inv_tW = U %*% diag(sqrt(lambda)) %*% t(U)
+      inv_tW = sweep(U, 2L, sqrt(lambda), "*") %*% t(U)
     )
   }
   
