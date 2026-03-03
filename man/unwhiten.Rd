@@ -17,3 +17,15 @@ Approximate reconstruction of the original data matrix.
 \description{
 Inverse transform from whitened space back to original EEG space
 }
+\examples{
+set.seed(1)
+X <- matrix(rnorm(200 * 6), 200, 6)
+m <- whiten_model(X, method = "ZCA", lambda = 0)
+Z <- predict(m, X)
+X_rec <- unwhiten(Z, m)
+max(abs(X_rec - X))
+
+}
+\seealso{
+\code{\link{unwhiten_fast}}, \code{\link{predict.whiten_model}}
+}

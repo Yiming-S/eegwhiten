@@ -81,3 +81,19 @@ A list of class \code{whiten_tune} containing the best model,
 Performs cross-validation across candidate whitening configurations and
 returns the best model fit on full data.
 }
+\examples{
+set.seed(42)
+X <- matrix(rnorm(150 * 6), 150, 6)
+tuned <- auto_tune_whitening(
+  X,
+  methods = c("PCA", "ZCA"),
+  n_comp_grid = c(3),
+  lambda_grid = list(0, 0.1),
+  cv_folds = 3, seed = 1, top_n = 4
+)
+head(tuned$ranking)
+
+}
+\seealso{
+\code{\link{whiten_model}}, \code{\link{report_whitening}}
+}

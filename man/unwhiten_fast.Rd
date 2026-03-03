@@ -17,3 +17,14 @@ Approximate reconstruction of the original data matrix.
 \description{
 Uses cached decomposition terms from \code{whiten_model} when available.
 }
+\examples{
+set.seed(1)
+X <- matrix(rnorm(200 * 6), 200, 6)
+m <- whiten_model(X, method = "PCA", n_comp = 4, lambda = 0.1)
+Z <- predict(m, X)
+X_rec <- unwhiten_fast(Z, m)
+
+}
+\seealso{
+\code{\link{unwhiten}}, \code{\link{predict.whiten_model}}
+}

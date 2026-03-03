@@ -48,3 +48,15 @@ Compute a whitening matrix \code{W} from a symmetric
 positive-definite covariance matrix using one of the
 implemented methods.
 }
+\examples{
+set.seed(1)
+X <- matrix(rnorm(200 * 8), 200, 8)
+S <- cov(X)
+W <- whiten_fit(S, method = "PCA", n_comp = 4, lambda = 0.1)
+dim(W)
+
+}
+\seealso{
+\code{\link{whiten_model}} for the full fit/transform workflow,
+  \code{\link{whiten_matrix}} for one-shot whitening.
+}

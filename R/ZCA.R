@@ -25,6 +25,13 @@
 #'   \item{Phi}{Loadings in the original space.}
 #'   \item{Psi}{Standardized loadings.}
 #'
+#' @seealso \code{\link{ZCA_cor}}, \code{\link{PCA}}, \code{\link{whiten_fit}}
+#'
+#' @examples
+#' S <- cov(matrix(rnorm(200 * 6), 200, 6))
+#' res <- ZCA(S)
+#' dim(res$W)
+#'
 #' @export
 ZCA <- function(Sigma,
                 returnW = TRUE,
@@ -53,7 +60,7 @@ ZCA <- function(Sigma,
   result <- list()
   
   # Precompute U * diag(1/sqrt(lambda)) * U^T
-  U_diag <- sweep(U, 2L, 1 / sqrt(lambda), "*") %*% t(U)
+  U_diag <- tcrossprod(sweep(U, 2L, 1 / sqrt(lambda), "*"), U)
   
   if (returnW) {
     W <- U_diag
@@ -80,7 +87,7 @@ ZCA <- function(Sigma,
     result$decomp <- list(
       U = U,
       D = lambda,
-      inv_tW = sweep(U, 2L, sqrt(lambda), "*") %*% t(U)
+      inv_tW = tcrossprod(sweep(U, 2L, sqrt(lambda), "*"), U)
     )
   }
   

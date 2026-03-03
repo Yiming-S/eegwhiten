@@ -49,8 +49,21 @@ Aligns a list of raw EEG matrices or covariance matrices to a global
 reference covariance. This avoids per-matrix independent whitening,
 which can distort between-session/class covariance structure.
 }
+\examples{
+set.seed(1)
+X1 <- matrix(rnorm(200 * 6), 200, 6)
+X2 <- matrix(rnorm(180 * 6), 180, 6)
+ea <- euclidean_alignment(list(X1, X2), input = "raw",
+                          mean_method = "logeuclid")
+str(ea$aligned)
+
+}
 \references{
 He, H., and Wu, D. (2019). Transfer learning for brain-computer interfaces:
 A Euclidean space data alignment approach. IEEE Transactions on Biomedical
 Engineering.
+}
+\seealso{
+\code{\link{predict.ea_model}}, \code{\link{inverse_ea}},
+  \code{\link{whiten_batch}} with \code{mode = "ea"}.
 }

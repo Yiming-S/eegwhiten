@@ -40,3 +40,12 @@ for iterative eigensolvers.}
 Perform whitening based on the eigen-decomposition.
 Supports dimensionality reduction via \code{n_comp}.
 }
+\examples{
+S <- cov(matrix(rnorm(200 * 6), 200, 6))
+res <- PCA(S, n_comp = 3)
+dim(res$W)
+
+}
+\seealso{
+\code{\link{whiten_fit}}, \code{\link{PCA_cor}}, \code{\link{ZCA}}
+}

@@ -49,3 +49,12 @@ by \code{Sigma}. This is useful when variables (EEG channels or
 features) have very different scales and one wants to whiten in
 a scale-invariant way.
 }
+\examples{
+S <- cov(matrix(rnorm(200 * 6), 200, 6))
+res <- PCA_cor(S, n_comp = 3)
+dim(res$W)
+
+}
+\seealso{
+\code{\link{PCA}}, \code{\link{ZCA_cor}}, \code{\link{whiten_fit}}
+}

@@ -21,6 +21,13 @@
 #'   \item{Phi}{Factor loadings in the original space (if \code{PhiPsi = TRUE}).}
 #'   \item{Psi}{Standardized loadings (if \code{PhiPsi = TRUE}).}
 #'
+#' @seealso \code{\link{PCA}}, \code{\link{ZCA}}, \code{\link{whiten_fit}}
+#'
+#' @examples
+#' S <- cov(matrix(rnorm(200 * 6), 200, 6))
+#' res <- Cholesky(S)
+#' dim(res$W)
+#'
 #' @export
 Cholesky <- function(Sigma, returnW = TRUE, PhiPsi = TRUE, return_decomp = FALSE) {
   # Sigma must be symmetric and positive-definite

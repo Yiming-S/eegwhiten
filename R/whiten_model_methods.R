@@ -8,6 +8,12 @@
 #' @param ... Unused.
 #'
 #' @return The input object invisibly.
+#'
+#' @examples
+#' m <- whiten_model(matrix(rnorm(200 * 6), 200, 6), method = "PCA",
+#'                   lambda = 0.1)
+#' print(m)
+#'
 #' @export
 #' @method print whiten_model
 print.whiten_model <- function(x, ...) {
@@ -58,6 +64,13 @@ print.whiten_model <- function(x, ...) {
 #' @param ... Unused.
 #'
 #' @return An object of class \code{"summary.whiten_model"}.
+#'
+#' @examples
+#' X <- matrix(rnorm(200 * 6), 200, 6)
+#' m <- whiten_model(X, method = "PCA", lambda = 0.1)
+#' s <- summary(m, data = X)
+#' print(s)
+#'
 #' @export
 #' @method summary whiten_model
 summary.whiten_model <- function(object, data = NULL, Z = NULL, ...) {

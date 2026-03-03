@@ -78,3 +78,21 @@ and channels or features in columns. This function estimates
 a centering vector and a whitening matrix, optionally using
 regularization (shrinkage) and dimensionality reduction.
 }
+\examples{
+set.seed(42)
+X_train <- matrix(rnorm(300 * 16), 300, 16)
+colnames(X_train) <- paste0("Ch", 1:16)
+
+m <- whiten_model(X_train, method = "PCA", var_threshold = 0.95,
+                  lambda = "auto")
+Z <- predict(m, X_train)
+print(m)
+
+}
+\seealso{
+\code{\link{predict.whiten_model}} to apply the model,
+  \code{\link{unwhiten}} for inverse transforms,
+  \code{\link{whiten_fit}} for the low-level API,
+  \code{\link{whiten_matrix}} for one-shot whitening,
+  \code{\link{check_whitening}} for diagnostics.
+}

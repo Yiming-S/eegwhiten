@@ -30,10 +30,21 @@
 #'   \item{mean_method}{Mean method used.}
 #'   \item{model}{Alignment model object (class \code{"ea_model"}).}
 #'
+#' @seealso \code{\link{predict.ea_model}}, \code{\link{inverse_ea}},
+#'   \code{\link{whiten_batch}} with \code{mode = "ea"}.
+#'
 #' @references
 #' He, H., and Wu, D. (2019). Transfer learning for brain-computer interfaces:
 #' A Euclidean space data alignment approach. IEEE Transactions on Biomedical
 #' Engineering.
+#'
+#' @examples
+#' set.seed(1)
+#' X1 <- matrix(rnorm(200 * 6), 200, 6)
+#' X2 <- matrix(rnorm(180 * 6), 180, 6)
+#' ea <- euclidean_alignment(list(X1, X2), input = "raw",
+#'                           mean_method = "logeuclid")
+#' str(ea$aligned)
 #'
 #' @export
 euclidean_alignment <- function(X_list,
@@ -145,6 +156,16 @@ euclidean_alignment <- function(X_list,
 #' @param ... Unused.
 #'
 #' @return Aligned matrix or list of aligned matrices.
+#'
+#' @seealso \code{\link{euclidean_alignment}}, \code{\link{inverse_ea}}
+#'
+#' @examples
+#' set.seed(1)
+#' X1 <- matrix(rnorm(200 * 5), 200, 5)
+#' X2 <- matrix(rnorm(180 * 5), 180, 5)
+#' ea <- euclidean_alignment(list(X1, X2), input = "raw")
+#' Z_new <- predict(ea$model, matrix(rnorm(100 * 5), 100, 5))
+#'
 #' @export
 #' @method predict ea_model
 predict.ea_model <- function(object, newdata, ...) {
@@ -188,6 +209,17 @@ predict.ea_model <- function(object, newdata, ...) {
 #' @param center Optional center vector added back for raw-data inverse mode.
 #'
 #' @return Matrix (or list of matrices) mapped back from EA-aligned space.
+#'
+#' @seealso \code{\link{euclidean_alignment}}, \code{\link{predict.ea_model}}
+#'
+#' @examples
+#' set.seed(1)
+#' X1 <- matrix(rnorm(200 * 5), 200, 5)
+#' X2 <- matrix(rnorm(180 * 5), 180, 5)
+#' ea <- euclidean_alignment(list(X1, X2), input = "raw", center = TRUE)
+#' Z1 <- predict(ea$model, X1)
+#' X1_rec <- inverse_ea(Z1, ea$model)
+#'
 #' @export
 inverse_ea <- function(Z, model, center = NULL) {
   if (!inherits(model, "ea_model")) {

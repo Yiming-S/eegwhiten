@@ -7,11 +7,22 @@
 check_condition(X)
 }
 \arguments{
-\item{X}{Numeric matrix}
+\item{X}{Numeric matrix with at least 2 rows and 2 columns.}
 }
 \value{
-The ratio of max/min eigenvalue of cov(X). High values indicate ill-conditioning.
+The condition number (a single positive numeric value, or
+  \code{Inf} if no positive eigenvalues exist).
 }
 \description{
-Check Condition Number of Data Matrix
+Computes the condition number of the sample covariance matrix of
+\code{X}, defined as the ratio of the largest to smallest positive
+eigenvalue. High values indicate ill-conditioning.
+}
+\examples{
+X <- matrix(rnorm(100 * 8), 100, 8)
+check_condition(X)
+
+}
+\seealso{
+\code{\link{whiten_model}}, \code{\link{check_whitening}}
 }

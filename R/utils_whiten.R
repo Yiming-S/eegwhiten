@@ -68,11 +68,11 @@
     "cholesky" = "Cholesky"
   )
 
-  out <- aliases[[trimws(method)]]
-  if (is.null(out)) {
+  key <- trimws(method)
+  if (!key %in% names(aliases)) {
     stop("Unknown method. Use one of: SVD, ZCA, ZCA-cor, PCA, PCA-cor, Cholesky.")
   }
-  out
+  aliases[[key]]
 }
 
 # Map canonical method names to concrete function names
@@ -304,8 +304,8 @@
   converged <- FALSE
   for (iter in seq_len(max_iter)) {
     Sinv <- tryCatch(
-      solve(S),
-      error = function(e) solve(S + eps * diag(d))
+      chol2inv(chol(S)),
+      error = function(e) chol2inv(chol(S + eps * diag(d)))
     )
     q <- rowSums((Xc %*% Sinv) * Xc)
     q <- pmax(q, eps)
@@ -648,8 +648,11 @@
   G <- .symmetrize(G)
 
   for (iter in seq_len(max_iter)) {
-    G_half <- .sqrtm_spd(G, eps = eps)
-    G_inv_half <- .invsqrtm_spd(G, eps = eps)
+    # Share eigendecomposition for sqrtm and invsqrtm
+    eig_G <- eigen(.symmetrize(G), symmetric = TRUE)
+    vals_G <- pmax(eig_G$values, eps)
+    G_half <- eig_G$vectors %*% diag(sqrt(vals_G), nrow = length(vals_G)) %*% t(eig_G$vectors)
+    G_inv_half <- eig_G$vectors %*% diag(1 / sqrt(vals_G), nrow = length(vals_G)) %*% t(eig_G$vectors)
 
     delta <- matrix(0, nrow(G), ncol(G))
     for (C in C_list) {
@@ -667,15 +670,31 @@
 }
 
 #' Check Condition Number of Data Matrix
-#' 
-#' @param X Numeric matrix
-#' @return The ratio of max/min eigenvalue of cov(X). High values indicate ill-conditioning.
+#'
+#' Computes the condition number of the sample covariance matrix of
+#' \code{X}, defined as the ratio of the largest to smallest positive
+#' eigenvalue. High values indicate ill-conditioning.
+#'
+#' @param X Numeric matrix with at least 2 rows and 2 columns.
+#'
+#' @return The condition number (a single positive numeric value, or
+#'   \code{Inf} if no positive eigenvalues exist).
+#'
+#' @seealso \code{\link{whiten_model}}, \code{\link{check_whitening}}
+#'
+#' @examples
+#' X <- matrix(rnorm(100 * 8), 100, 8)
+#' check_condition(X)
+#'
 #' @export
 check_condition <- function(X) {
-  if(!is.matrix(X)) stop("X must be a matrix")
-  ev <- eigen(stats::cov(X), symmetric = TRUE, only.values = TRUE)$values
-  # Filter small/negative values for ratio calculation
+  if (!is.matrix(X)) stop("X must be a matrix.")
+  if (!is.numeric(X)) stop("X must be a numeric matrix.")
+  if (any(!is.finite(X))) stop("X must contain only finite values.")
+  if (nrow(X) < 2L) stop("X must have at least 2 rows.")
+  if (ncol(X) < 2L) stop("X must have at least 2 columns.")
+  ev <- eigen(cov(X), symmetric = TRUE, only.values = TRUE)$values
   ev <- ev[ev > 0]
-  if(length(ev) == 0) return(Inf)
+  if (length(ev) == 0L) return(Inf)
   max(ev) / min(ev)
 }

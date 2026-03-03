@@ -1,9 +1,9 @@
 Package: eegwhiten
 Type: Package
 Title: Whitening Transforms for EEG Covariance Matrices
-Version: 0.1.0
-Author: Yiming Shen
-Maintainer: Yiming Shen <yiming.shen001@umb.edu>
+Version: 0.2.0
+Authors@R: person("Yiming", "Shen", email = "yiming.shen001@umb.edu",
+    role = c("aut", "cre"))
 Description:
     Whitening transforms (PCA, PCA on the correlation matrix, ZCA,
     ZCA on the correlation matrix, SVD and Cholesky) with a simple
@@ -12,12 +12,21 @@ Description:
     whitening parameters across datasets, inverse transforms, and
     basic diagnostics.
 License: MIT + file LICENSE
+URL: https://github.com/Yiming-S/eegwhiten
+BugReports: https://github.com/Yiming-S/eegwhiten/issues
 Encoding: UTF-8
 Depends: R (>= 3.6.0)
+Imports:
+    stats,
+    graphics,
+    grDevices
 Suggests:
+    knitr,
+    rmarkdown,
     pkgload,
     robustbase,
     RSpectra,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3

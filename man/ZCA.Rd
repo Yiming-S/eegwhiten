@@ -42,3 +42,12 @@ symmetric positive-definite covariance matrix. This transform
 keeps the whitened data as close as possible (in L2 sense) to
 the original data while decorrelating components.
 }
+\examples{
+S <- cov(matrix(rnorm(200 * 6), 200, 6))
+res <- ZCA(S)
+dim(res$W)
+
+}
+\seealso{
+\code{\link{ZCA_cor}}, \code{\link{PCA}}, \code{\link{whiten_fit}}
+}

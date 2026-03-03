@@ -20,3 +20,14 @@ Aligned matrix or list of aligned matrices.
 \description{
 Apply an EA Model to New Data
 }
+\examples{
+set.seed(1)
+X1 <- matrix(rnorm(200 * 5), 200, 5)
+X2 <- matrix(rnorm(180 * 5), 180, 5)
+ea <- euclidean_alignment(list(X1, X2), input = "raw")
+Z_new <- predict(ea$model, matrix(rnorm(100 * 5), 100, 5))
+
+}
+\seealso{
+\code{\link{euclidean_alignment}}, \code{\link{inverse_ea}}
+}

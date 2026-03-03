@@ -1,3 +1,6 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^\.github$
+^inst/bench$
+^tests/test-report\.md$
+^tests/generate-test-report\.R$

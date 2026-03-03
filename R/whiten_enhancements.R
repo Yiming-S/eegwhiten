@@ -16,6 +16,17 @@
 #'   \code{X_new}.
 #'
 #' @return Updated \code{whiten_model} object.
+#'
+#' @seealso \code{\link{whiten_model}}
+#'
+#' @examples
+#' set.seed(1)
+#' X1 <- matrix(rnorm(200 * 8), 200, 8)
+#' m <- whiten_model(X1, method = "ZCA", lambda = 0.1)
+#' X2 <- matrix(rnorm(100 * 8), 100, 8)
+#' m_updated <- whiten_model_update(m, X2)
+#' m_updated$n_obs
+#'
 #' @export
 whiten_model_update <- function(model, X_new, sample_weight = NULL) {
   if (!inherits(model, "whiten_model")) {
@@ -228,6 +239,21 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL) {
 #'
 #' @return A list of class \code{whiten_tune} containing the best model,
 #'   best parameters, and cross-validation ranking.
+#'
+#' @seealso \code{\link{whiten_model}}, \code{\link{report_whitening}}
+#'
+#' @examples
+#' set.seed(42)
+#' X <- matrix(rnorm(150 * 6), 150, 6)
+#' tuned <- auto_tune_whitening(
+#'   X,
+#'   methods = c("PCA", "ZCA"),
+#'   n_comp_grid = c(3),
+#'   lambda_grid = list(0, 0.1),
+#'   cv_folds = 3, seed = 1, top_n = 4
+#' )
+#' head(tuned$ranking)
+#'
 #' @export
 auto_tune_whitening <- function(X,
                                 y = NULL,
@@ -526,6 +552,16 @@ auto_tune_whitening <- function(X,
 #'
 #' @return If \code{file} is non-NULL, invisibly returns the output path.
 #'   Otherwise returns the markdown text.
+#'
+#' @seealso \code{\link{whiten_model}}, \code{\link{auto_tune_whitening}}
+#'
+#' @examples
+#' set.seed(1)
+#' X <- matrix(rnorm(200 * 6), 200, 6)
+#' m <- whiten_model(X, method = "ZCA", lambda = 0.1)
+#' txt <- report_whitening(m, data = X, file = NULL)
+#' cat(txt)
+#'
 #' @export
 report_whitening <- function(model,
                              data = NULL,

@@ -18,3 +18,13 @@ A \code{whiten_model} object.
 Flattens \code{[n_trials, n_channels, n_time]} into
 \code{[n_trials * n_time, n_channels]} and fits \code{whiten_model()}.
 }
+\examples{
+set.seed(1)
+X_t <- array(rnorm(20 * 6 * 40), dim = c(20, 6, 40))
+m <- whiten_model_tensor(X_t, method = "ZCA", lambda = 0)
+
+}
+\seealso{
+\code{\link{predict_tensor}}, \code{\link{unwhiten_tensor}},
+  \code{\link{whiten_model}}
+}

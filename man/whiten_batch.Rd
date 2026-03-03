@@ -108,3 +108,18 @@ Each matrix in \code{X_list} is whitened independently using
 on training data with \code{whiten_model()} and call
 \code{predict()} on test data instead of using this function.
 }
+\examples{
+set.seed(1)
+X_list <- list(
+  matrix(rnorm(200 * 8), 200, 8),
+  matrix(rnorm(180 * 8), 180, 8)
+)
+out <- whiten_batch(X_list, mode = "shared_model",
+                    method = "PCA", n_comp = 4, lambda = 0.1)
+length(out)
+
+}
+\seealso{
+\code{\link{whiten_matrix}}, \code{\link{whiten_model}},
+  \code{\link{euclidean_alignment}} for direct EA access.
+}

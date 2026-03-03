@@ -48,6 +48,9 @@
 #'   \item{lambda_method}{Automatic shrinkage estimator, if used.}
 #'   \item{model}{The fitted \code{whiten_model} object.}
 #'
+#' @seealso \code{\link{whiten_model}} for the fit/transform workflow,
+#'   \code{\link{whiten_batch}} for batch whitening.
+#'
 #' @examples
 #' set.seed(42)
 #' X <- matrix(rnorm(200 * 16), 200, 16)
@@ -165,6 +168,19 @@ whiten_matrix <- function(X, center = TRUE,
 #'
 #' @return A list of results as returned by \code{whiten_matrix()}.
 #'
+#' @seealso \code{\link{whiten_matrix}}, \code{\link{whiten_model}},
+#'   \code{\link{euclidean_alignment}} for direct EA access.
+#'
+#' @examples
+#' set.seed(1)
+#' X_list <- list(
+#'   matrix(rnorm(200 * 8), 200, 8),
+#'   matrix(rnorm(180 * 8), 180, 8)
+#' )
+#' out <- whiten_batch(X_list, mode = "shared_model",
+#'                     method = "PCA", n_comp = 4, lambda = 0.1)
+#' length(out)
+#'
 #' @export
 whiten_batch <- function(X_list, center = TRUE,
                          method = c("SVD", "ZCA", "ZCA-cor",
@@ -249,6 +265,7 @@ whiten_batch <- function(X_list, center = TRUE,
   }
 
   if (shared_model && identical(mode, "independent")) {
+    warning("'shared_model' parameter is deprecated; use mode = 'shared_model' instead.", call. = FALSE)
     mode <- "shared_model"
   }
   if (mode == "independent" && length(X_list) > 1L) {

@@ -91,3 +91,7 @@ res <- whiten_matrix(X, center = TRUE, method = "PCA")
 str(res$Z)
 
 }
+\seealso{
+\code{\link{whiten_model}} for the fit/transform workflow,
+  \code{\link{whiten_batch}} for batch whitening.
+}

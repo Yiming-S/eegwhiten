@@ -29,3 +29,12 @@ Cholesky factorization of a symmetric positive-definite
 covariance matrix. This is useful for EEG data where the
 covariance is estimated across channels or features.
 }
+\examples{
+S <- cov(matrix(rnorm(200 * 6), 200, 6))
+res <- Cholesky(S)
+dim(res$W)
+
+}
+\seealso{
+\code{\link{PCA}}, \code{\link{ZCA}}, \code{\link{whiten_fit}}
+}

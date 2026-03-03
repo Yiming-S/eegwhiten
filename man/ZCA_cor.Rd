@@ -41,3 +41,12 @@ Perform ZCA whitening using the correlation matrix implied
 by \code{Sigma}. This is a scale-invariant whitening transform
 that equalizes variance and removes linear correlations.
 }
+\examples{
+S <- cov(matrix(rnorm(200 * 6), 200, 6))
+res <- ZCA_cor(S)
+dim(res$W)
+
+}
+\seealso{
+\code{\link{ZCA}}, \code{\link{PCA_cor}}, \code{\link{whiten_fit}}
+}

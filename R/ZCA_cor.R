@@ -24,6 +24,13 @@
 #'   \item{Phi}{Factor loadings in the original space.}
 #'   \item{Psi}{Standardized loadings.}
 #'
+#' @seealso \code{\link{ZCA}}, \code{\link{PCA_cor}}, \code{\link{whiten_fit}}
+#'
+#' @examples
+#' S <- cov(matrix(rnorm(200 * 6), 200, 6))
+#' res <- ZCA_cor(S)
+#' dim(res$W)
+#'
 #' @export
 ZCA_cor <- function(Sigma,
                     returnW = TRUE,

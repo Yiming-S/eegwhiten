@@ -29,6 +29,16 @@
 #'
 #' @return Whitening matrix \code{W}.
 #'
+#' @seealso \code{\link{whiten_model}} for the full fit/transform workflow,
+#'   \code{\link{whiten_matrix}} for one-shot whitening.
+#'
+#' @examples
+#' set.seed(1)
+#' X <- matrix(rnorm(200 * 8), 200, 8)
+#' S <- cov(X)
+#' W <- whiten_fit(S, method = "PCA", n_comp = 4, lambda = 0.1)
+#' dim(W)
+#'
 #' @export
 whiten_fit <- function(Sigma,
                        method = c("SVD", "ZCA", "ZCA-cor",
@@ -166,6 +176,22 @@ whiten_fit <- function(Sigma,
 #'   sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.
 #'
 #' @return An object of class \code{"whiten_model"}.
+#'
+#' @seealso \code{\link{predict.whiten_model}} to apply the model,
+#'   \code{\link{unwhiten}} for inverse transforms,
+#'   \code{\link{whiten_fit}} for the low-level API,
+#'   \code{\link{whiten_matrix}} for one-shot whitening,
+#'   \code{\link{check_whitening}} for diagnostics.
+#'
+#' @examples
+#' set.seed(42)
+#' X_train <- matrix(rnorm(300 * 16), 300, 16)
+#' colnames(X_train) <- paste0("Ch", 1:16)
+#'
+#' m <- whiten_model(X_train, method = "PCA", var_threshold = 0.95,
+#'                   lambda = "auto")
+#' Z <- predict(m, X_train)
+#' print(m)
 #'
 #' @export
 whiten_model <- function(X, center = TRUE,
@@ -399,6 +425,15 @@ whiten_model <- function(X, center = TRUE,
 #'
 #' @return Whitened data matrix (possibly with reduced dimensions).
 #'
+#' @seealso \code{\link{whiten_model}}, \code{\link{unwhiten}}
+#'
+#' @examples
+#' set.seed(1)
+#' X <- matrix(rnorm(200 * 8), 200, 8)
+#' m <- whiten_model(X, method = "ZCA", lambda = 0.1)
+#' Z <- predict(m, X)
+#' dim(Z)
+#'
 #' @export
 #' @method predict whiten_model
 predict.whiten_model <- function(object, newdata, ...) {
@@ -412,8 +447,12 @@ predict.whiten_model <- function(object, newdata, ...) {
     stop(sprintf("Mismatch: Model expects %d columns, but newdata has %d.", d, ncol(newdata)))
   }
 
-  # Center using stored mean
-  Xc <- sweep(newdata, 2, object$center, "-")
+  # Center using stored mean (skip if centering was disabled)
+  Xc <- if (isTRUE(object$center_enabled)) {
+    sweep(newdata, 2, object$center, "-")
+  } else {
+    newdata
+  }
 
   # Z = centered X times whitening matrix
   Wt <- if (!is.null(object$Wt)) object$Wt else t(object$W)
@@ -437,6 +476,16 @@ predict.whiten_model <- function(object, newdata, ...) {
 #' @param model A \code{whiten_model} object.
 #'
 #' @return Approximate reconstruction of the original data matrix.
+#'
+#' @seealso \code{\link{unwhiten_fast}}, \code{\link{predict.whiten_model}}
+#'
+#' @examples
+#' set.seed(1)
+#' X <- matrix(rnorm(200 * 6), 200, 6)
+#' m <- whiten_model(X, method = "ZCA", lambda = 0)
+#' Z <- predict(m, X)
+#' X_rec <- unwhiten(Z, m)
+#' max(abs(X_rec - X))
 #'
 #' @export
 unwhiten <- function(Z, model) {
@@ -483,6 +532,16 @@ unwhiten <- function(Z, model) {
 #' @param model A \code{whiten_model} object.
 #'
 #' @return Approximate reconstruction of the original data matrix.
+#'
+#' @seealso \code{\link{unwhiten}}, \code{\link{predict.whiten_model}}
+#'
+#' @examples
+#' set.seed(1)
+#' X <- matrix(rnorm(200 * 6), 200, 6)
+#' m <- whiten_model(X, method = "PCA", n_comp = 4, lambda = 0.1)
+#' Z <- predict(m, X)
+#' X_rec <- unwhiten_fast(Z, m)
+#'
 #' @export
 unwhiten_fast <- function(Z, model) {
   if (!inherits(model, "whiten_model")) {
@@ -511,7 +570,23 @@ unwhiten_fast <- function(Z, model) {
 #'
 #' @param Z Whitened data matrix.
 #'
-#' @return List of diagnostics.
+#' @return A list with elements:
+#'   \item{diag_range}{Range (min, max) of diagonal entries of \code{cov(Z)}.}
+#'   \item{diag_mean}{Mean diagonal value.}
+#'   \item{offdiag_frob}{Frobenius norm of off-diagonal entries.}
+#'   \item{dim}{Number of components.}
+#'   \item{cov_matrix}{The sample covariance of \code{Z}.}
+#'
+#' @seealso \code{\link{whiten_model}}, \code{\link{check_condition}}
+#'
+#' @examples
+#' set.seed(1)
+#' X <- matrix(rnorm(200 * 8), 200, 8)
+#' m <- whiten_model(X, method = "ZCA", lambda = 0.1)
+#' Z <- predict(m, X)
+#' d <- check_whitening(Z)
+#' d$diag_mean
+#'
 #' @export
 check_whitening <- function(Z) {
   if (!is.matrix(Z)) stop("Z must be a matrix.")

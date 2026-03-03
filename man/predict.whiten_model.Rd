@@ -20,3 +20,14 @@ Whitened data matrix (possibly with reduced dimensions).
 \description{
 Apply a whitening model to new EEG data
 }
+\examples{
+set.seed(1)
+X <- matrix(rnorm(200 * 8), 200, 8)
+m <- whiten_model(X, method = "ZCA", lambda = 0.1)
+Z <- predict(m, X)
+dim(Z)
+
+}
+\seealso{
+\code{\link{whiten_model}}, \code{\link{unwhiten}}
+}

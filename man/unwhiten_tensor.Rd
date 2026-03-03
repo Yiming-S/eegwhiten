@@ -17,3 +17,15 @@ Reconstructed 3D array \code{[n_trials, n_channels, n_time]}.
 \description{
 Inverse transform a whitened 3D EEG tensor
 }
+\examples{
+set.seed(1)
+X_t <- array(rnorm(20 * 6 * 40), dim = c(20, 6, 40))
+m <- whiten_model_tensor(X_t, method = "ZCA", lambda = 0)
+Z_t <- predict_tensor(m, X_t)
+X_rec <- unwhiten_tensor(Z_t, m)
+
+}
+\seealso{
+\code{\link{whiten_model_tensor}}, \code{\link{predict_tensor}},
+  \code{\link{unwhiten}}
+}

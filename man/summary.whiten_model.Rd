@@ -22,3 +22,10 @@ An object of class \code{"summary.whiten_model"}.
 \description{
 Summarize a whitening model
 }
+\examples{
+X <- matrix(rnorm(200 * 6), 200, 6)
+m <- whiten_model(X, method = "PCA", lambda = 0.1)
+s <- summary(m, data = X)
+print(s)
+
+}

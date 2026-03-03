@@ -10,8 +10,25 @@ check_whitening(Z)
 \item{Z}{Whitened data matrix.}
 }
 \value{
-List of diagnostics.
+A list with elements:
+  \item{diag_range}{Range (min, max) of diagonal entries of \code{cov(Z)}.}
+  \item{diag_mean}{Mean diagonal value.}
+  \item{offdiag_frob}{Frobenius norm of off-diagonal entries.}
+  \item{dim}{Number of components.}
+  \item{cov_matrix}{The sample covariance of \code{Z}.}
 }
 \description{
 Diagnostic check for whitening quality
+}
+\examples{
+set.seed(1)
+X <- matrix(rnorm(200 * 8), 200, 8)
+m <- whiten_model(X, method = "ZCA", lambda = 0.1)
+Z <- predict(m, X)
+d <- check_whitening(Z)
+d$diag_mean
+
+}
+\seealso{
+\code{\link{whiten_model}}, \code{\link{check_condition}}
 }

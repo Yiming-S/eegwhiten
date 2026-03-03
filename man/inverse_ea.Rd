@@ -19,3 +19,15 @@ Matrix (or list of matrices) mapped back from EA-aligned space.
 \description{
 Inverse Transform for EA-Aligned Data
 }
+\examples{
+set.seed(1)
+X1 <- matrix(rnorm(200 * 5), 200, 5)
+X2 <- matrix(rnorm(180 * 5), 180, 5)
+ea <- euclidean_alignment(list(X1, X2), input = "raw", center = TRUE)
+Z1 <- predict(ea$model, X1)
+X1_rec <- inverse_ea(Z1, ea$model)
+
+}
+\seealso{
+\code{\link{euclidean_alignment}}, \code{\link{predict.ea_model}}
+}

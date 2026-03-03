@@ -23,6 +23,13 @@
 #' @param fast Logical; if \code{TRUE}, allow faster approximate settings
 #'   for iterative eigensolvers.
 #'
+#' @seealso \code{\link{whiten_fit}}, \code{\link{PCA_cor}}, \code{\link{ZCA}}
+#'
+#' @examples
+#' S <- cov(matrix(rnorm(200 * 6), 200, 6))
+#' res <- PCA(S, n_comp = 3)
+#' dim(res$W)
+#'
 #' @export
 PCA <- function(Sigma,
                 n_comp = NULL,

@@ -49,3 +49,12 @@ of a symmetric positive-definite covariance matrix. For SPD
 matrices, SVD and eigen-decomposition coincide up to ordering,
 but this function may be convenient in some workflows.
 }
+\examples{
+S <- cov(matrix(rnorm(200 * 6), 200, 6))
+res <- SVD(S, n_comp = 3)
+dim(res$W)
+
+}
+\seealso{
+\code{\link{PCA}}, \code{\link{ZCA}}, \code{\link{whiten_fit}}
+}

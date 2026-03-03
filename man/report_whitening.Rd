@@ -37,3 +37,14 @@ If \code{file} is non-NULL, invisibly returns the output path.
 \description{
 Generates a markdown report with model settings and whitening diagnostics.
 }
+\examples{
+set.seed(1)
+X <- matrix(rnorm(200 * 6), 200, 6)
+m <- whiten_model(X, method = "ZCA", lambda = 0.1)
+txt <- report_whitening(m, data = X, file = NULL)
+cat(txt)
+
+}
+\seealso{
+\code{\link{whiten_model}}, \code{\link{auto_tune_whitening}}
+}

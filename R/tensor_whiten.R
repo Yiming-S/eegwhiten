@@ -36,6 +36,15 @@
 #' @param ... Passed to \code{whiten_model()}.
 #'
 #' @return A \code{whiten_model} object.
+#'
+#' @seealso \code{\link{predict_tensor}}, \code{\link{unwhiten_tensor}},
+#'   \code{\link{whiten_model}}
+#'
+#' @examples
+#' set.seed(1)
+#' X_t <- array(rnorm(20 * 6 * 40), dim = c(20, 6, 40))
+#' m <- whiten_model_tensor(X_t, method = "ZCA", lambda = 0)
+#'
 #' @export
 whiten_model_tensor <- function(X_tensor, ...) {
   tm <- .tensor_to_matrix(X_tensor)
@@ -48,6 +57,16 @@ whiten_model_tensor <- function(X_tensor, ...) {
 #' @param X_tensor Numeric 3D array \code{[n_trials, n_channels, n_time]}.
 #'
 #' @return Whitened 3D array \code{[n_trials, n_components, n_time]}.
+#'
+#' @seealso \code{\link{whiten_model_tensor}}, \code{\link{unwhiten_tensor}}
+#'
+#' @examples
+#' set.seed(1)
+#' X_t <- array(rnorm(20 * 6 * 40), dim = c(20, 6, 40))
+#' m <- whiten_model_tensor(X_t, method = "ZCA", lambda = 0)
+#' Z_t <- predict_tensor(m, X_t)
+#' dim(Z_t)
+#'
 #' @export
 predict_tensor <- function(model, X_tensor) {
   if (!inherits(model, "whiten_model")) {
@@ -70,6 +89,17 @@ predict_tensor <- function(model, X_tensor) {
 #' @param model A \code{whiten_model} object.
 #'
 #' @return Reconstructed 3D array \code{[n_trials, n_channels, n_time]}.
+#'
+#' @seealso \code{\link{whiten_model_tensor}}, \code{\link{predict_tensor}},
+#'   \code{\link{unwhiten}}
+#'
+#' @examples
+#' set.seed(1)
+#' X_t <- array(rnorm(20 * 6 * 40), dim = c(20, 6, 40))
+#' m <- whiten_model_tensor(X_t, method = "ZCA", lambda = 0)
+#' Z_t <- predict_tensor(m, X_t)
+#' X_rec <- unwhiten_tensor(Z_t, m)
+#'
 #' @export
 unwhiten_tensor <- function(Z_tensor, model) {
   if (!inherits(model, "whiten_model")) {

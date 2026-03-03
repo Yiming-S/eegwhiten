@@ -24,3 +24,15 @@ new observations, avoiding a full refit from all historical data.
 Currently supports models fitted with
 \code{cov_estimator = "empirical"}.
 }
+\examples{
+set.seed(1)
+X1 <- matrix(rnorm(200 * 8), 200, 8)
+m <- whiten_model(X1, method = "ZCA", lambda = 0.1)
+X2 <- matrix(rnorm(100 * 8), 100, 8)
+m_updated <- whiten_model_update(m, X2)
+m_updated$n_obs
+
+}
+\seealso{
+\code{\link{whiten_model}}
+}

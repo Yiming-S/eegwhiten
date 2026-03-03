@@ -17,3 +17,9 @@ The input object invisibly.
 \description{
 Print a whitening model
 }
+\examples{
+m <- whiten_model(matrix(rnorm(200 * 6), 200, 6), method = "PCA",
+                  lambda = 0.1)
+print(m)
+
+}

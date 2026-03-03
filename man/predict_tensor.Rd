@@ -17,3 +17,14 @@ Whitened 3D array \code{[n_trials, n_components, n_time]}.
 \description{
 Apply a whitening model to a 3D EEG tensor
 }
+\examples{
+set.seed(1)
+X_t <- array(rnorm(20 * 6 * 40), dim = c(20, 6, 40))
+m <- whiten_model_tensor(X_t, method = "ZCA", lambda = 0)
+Z_t <- predict_tensor(m, X_t)
+dim(Z_t)
+
+}
+\seealso{
+\code{\link{whiten_model_tensor}}, \code{\link{unwhiten_tensor}}
+}

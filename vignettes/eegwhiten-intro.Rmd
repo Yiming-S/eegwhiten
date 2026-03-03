@@ -1,0 +1,177 @@
+---
+title: "Introduction to eegwhiten"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to eegwhiten}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+`eegwhiten` provides whitening transforms for EEG and multichannel signal data.
+It supports six methods (PCA, PCA-cor, ZCA, ZCA-cor, SVD, Cholesky) with a
+model-based API: fit once on training data, then apply to new data.
+
+## Quick Start
+
+```{r quick-start}
+library(eegwhiten)
+set.seed(42)
+
+# Simulate EEG data: 300 trials x 16 channels
+X_train <- matrix(rnorm(300 * 16), 300, 16)
+X_test  <- matrix(rnorm(120 * 16), 120, 16)
+colnames(X_train) <- paste0("Ch", 1:16)
+colnames(X_test)  <- colnames(X_train)
+
+# Fit a whitening model on training data
+m <- whiten_model(
+  X_train,
+  method       = "PCA",
+  var_threshold = 0.95,
+  lambda       = "auto"
+)
+print(m)
+
+# Apply to test data
+Z_test <- predict(m, X_test)
+dim(Z_test)
+```
+
+## Diagnostics
+
+After whitening, the covariance of the transformed data should be close to
+the identity matrix. Use `check_whitening()` to verify:
+
+```{r diagnostics}
+d <- check_whitening(Z_test)
+d$diag_mean       # should be close to 1
+d$offdiag_frob    # should be close to 0
+```
+
+## Inverse Transform
+
+Recover an approximation of the original data from whitened data:
+
+```{r inverse}
+X_rec <- unwhiten(Z_test, m)
+dim(X_rec)
+```
+
+For full-rank methods (no dimensionality reduction), the reconstruction is exact.
+
+## One-Shot Whitening
+
+For simple workflows where you don't need the model object:
+
+```{r one-shot}
+res <- whiten_matrix(X_train, method = "ZCA", lambda = 0.1)
+str(res$Z)
+```
+
+## Whitening Methods
+
+| Method    | Description                          | Dim. reduction |
+|-----------|--------------------------------------|:--------------:|
+| PCA       | Eigen-decomposition based            | Yes            |
+| PCA-cor   | PCA on correlation (scale-invariant) | Yes            |
+| SVD       | Singular value decomposition         | Yes            |
+| ZCA       | Zero-phase, closest to original data | No             |
+| ZCA-cor   | ZCA on correlation                   | No             |
+| Cholesky  | Cholesky factorization               | No             |
+
+## Regularization
+
+Covariance shrinkage toward a scaled identity target prevents
+ill-conditioning:
+- `lambda = 0`: no shrinkage
+- `lambda = "auto"`: automatic selection via OAS or Ledoit-Wolf
+- `lambda` between 0 and 1: manual shrinkage
+
+```{r regularization}
+m_reg <- whiten_model(X_train, method = "PCA", lambda = 0.2)
+m_auto <- whiten_model(X_train, method = "PCA", lambda = "auto",
+                       lambda_method = "oas")
+m_auto$lambda
+```
+
+## Batch Whitening
+
+Process multiple sessions or subjects at once:
+
+```{r batch}
+X_list <- list(
+  matrix(rnorm(200 * 8), 200, 8),
+  matrix(rnorm(180 * 8), 180, 8)
+)
+
+# Shared model from first matrix
+out <- whiten_batch(X_list, mode = "shared_model",
+                    method = "PCA", n_comp = 4, lambda = 0.1)
+length(out)
+```
+
+## Euclidean Alignment
+
+Align multiple sessions to a global reference covariance:
+
+```{r ea}
+ea <- euclidean_alignment(X_list, input = "raw",
+                          mean_method = "logeuclid")
+str(ea$aligned, max.level = 1)
+```
+
+## Incremental Updates
+
+Update a model with new data without refitting from scratch:
+
+```{r update}
+X_new <- matrix(rnorm(80 * 16), 80, 16)
+m_updated <- whiten_model_update(m, X_new)
+m_updated$n_obs
+```
+
+## Hyperparameter Tuning
+
+Automatically select the best method and parameters via cross-validation:
+
+```{r tuning}
+tuned <- auto_tune_whitening(
+  X_train,
+  methods      = c("PCA", "ZCA"),
+  n_comp_grid  = c(8, 12),
+  lambda_grid  = list("auto", 0.1),
+  cv_folds     = 3,
+  seed         = 123,
+  top_n        = 4
+)
+head(tuned$ranking)
+```
+
+## Tensor Data
+
+Handle 3D EEG tensors (trials x channels x time):
+
+```{r tensor}
+X_tensor <- array(rnorm(20 * 8 * 50), dim = c(20, 8, 50))
+m_t <- whiten_model_tensor(X_tensor, method = "ZCA", lambda = 0)
+Z_tensor <- predict_tensor(m_t, X_tensor)
+dim(Z_tensor)
+```
+
+## Reporting
+
+Generate a markdown report:
+
+```{r report}
+txt <- report_whitening(m, data = X_train, file = NULL)
+cat(substr(txt, 1, 300), "...\n")
+```
