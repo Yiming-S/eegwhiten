@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 args <- commandArgs(trailingOnly = TRUE)
-output <- "tests/test-report.md"
+output <- if (dir.exists("tests")) "tests/test-report.md" else "test-report.md"
 
 if (length(args) > 0L) {
   for (i in seq_along(args)) {
@@ -11,19 +11,26 @@ if (length(args) > 0L) {
   }
 }
 
-if (!suppressWarnings(requireNamespace("eegwhiten", quietly = TRUE))) {
-  if (!suppressWarnings(requireNamespace("pkgload", quietly = TRUE))) {
-    stop("Either installed package 'eegwhiten' or package 'pkgload' is required.")
-  }
+if (suppressWarnings(requireNamespace("pkgload", quietly = TRUE))) {
   pkgload::load_all(".", quiet = TRUE, export_all = FALSE)
-} else {
+} else if (suppressWarnings(requireNamespace("eegwhiten", quietly = TRUE))) {
   suppressPackageStartupMessages(library(eegwhiten))
+} else {
+  stop("Either package 'pkgload' (preferred) or installed package 'eegwhiten' is required.")
 }
 
 suppressPackageStartupMessages(library(testthat))
 
+test_dir_path <- if (dir.exists("tests/testthat")) {
+  "tests/testthat"
+} else if (dir.exists("testthat")) {
+  "testthat"
+} else {
+  stop("No test directory found. Expected 'tests/testthat' or 'testthat'.")
+}
+
 results <- testthat::test_dir(
-  "tests/testthat",
+  test_dir_path,
   reporter = testthat::SilentReporter$new()
 )
 
@@ -122,4 +129,3 @@ if (!dir.exists(out_dir)) {
 writeLines(report_lines, con = output, useBytes = TRUE)
 
 cat(sprintf("Wrote test report to %s\n", output))
-

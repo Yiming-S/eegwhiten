@@ -12,6 +12,11 @@ whiten_matrix(
   var_threshold = NULL,
   lambda = "auto",
   lambda_method = c("oas", "lw"),
+  sample_weight = NULL,
+  cov_estimator = c("empirical", "mcd", "tyler"),
+  tyler_tol = 1e-06,
+  tyler_max_iter = 200,
+  tyler_eps = 1e-06,
   eig_method = c("auto", "base", "rspectra"),
   fast = FALSE,
   sign_reference = NULL
@@ -37,6 +42,18 @@ strength.}
 
 \item{lambda_method}{Method used when \code{lambda = "auto"}.
 One of \code{"oas"} or \code{"lw"}.}
+
+\item{sample_weight}{Optional non-negative sample weights with
+length \code{nrow(X)}.}
+
+\item{cov_estimator}{Covariance estimator; one of \code{"empirical"},
+\code{"mcd"}, or \code{"tyler"}.}
+
+\item{tyler_tol}{Convergence tolerance for \code{cov_estimator = "tyler"}.}
+
+\item{tyler_max_iter}{Maximum iterations for Tyler covariance estimation.}
+
+\item{tyler_eps}{Numerical stabilization floor for Tyler estimation.}
 
 \item{eig_method}{Eigen solver backend; one of \code{"auto"},
 \code{"base"}, or \code{"rspectra"}.}

@@ -24,6 +24,10 @@ print.whiten_model <- function(x, ...) {
   lambda_method <- if (!is.null(x$lambda_method)) x$lambda_method else NA_character_
   eig_method <- if (!is.null(x$eig_method)) x$eig_method else NA_character_
   fast_mode <- if (!is.null(x$fast)) x$fast else NA
+  cov_estimator <- if (!is.null(x$cov_estimator)) x$cov_estimator else NA_character_
+  sample_weighted <- if (!is.null(x$sample_weighted)) x$sample_weighted else NA
+  n_obs <- if (!is.null(x$n_obs)) x$n_obs else NA_integer_
+  update_count <- if (!is.null(x$update_count)) x$update_count else 0L
 
   cat("<whiten_model>\n")
   cat("  method      :", x$method, "\n")
@@ -34,6 +38,10 @@ print.whiten_model <- function(x, ...) {
   cat("  lambda      :", show_val(x$lambda, digits = 4), "\n")
   cat("  eig_method  :", show_val(eig_method), "\n")
   cat("  fast_mode   :", show_val(fast_mode), "\n")
+  cat("  cov_estimator:", show_val(cov_estimator), "\n")
+  cat("  weighted_fit:", show_val(sample_weighted), "\n")
+  cat("  n_obs       :", show_val(n_obs), "\n")
+  cat("  updates     :", show_val(update_count), "\n")
   if (identical(lambda_input, "auto")) {
     cat("  lambda_mode :", "auto (", lambda_method, ")\n", sep = "")
   }
@@ -78,6 +86,10 @@ summary.whiten_model <- function(object, data = NULL, Z = NULL, ...) {
     lambda_method = if (!is.null(object$lambda_method)) object$lambda_method else NA_character_,
     eig_method = if (!is.null(object$eig_method)) object$eig_method else NA_character_,
     fast = if (!is.null(object$fast)) object$fast else NA,
+    cov_estimator = if (!is.null(object$cov_estimator)) object$cov_estimator else NA_character_,
+    sample_weighted = if (!is.null(object$sample_weighted)) object$sample_weighted else NA,
+    n_obs = if (!is.null(object$n_obs)) object$n_obs else NA_integer_,
+    update_count = if (!is.null(object$update_count)) object$update_count else 0L,
     diagnostics = diagnostics
   )
 
@@ -110,6 +122,10 @@ print.summary.whiten_model <- function(x, ...) {
   cat("  lambda      :", show_val(x$lambda, digits = 4), "\n")
   cat("  eig_method  :", show_val(x$eig_method), "\n")
   cat("  fast_mode   :", show_val(x$fast), "\n")
+  cat("  cov_estimator:", show_val(x$cov_estimator), "\n")
+  cat("  weighted_fit:", show_val(x$sample_weighted), "\n")
+  cat("  n_obs       :", show_val(x$n_obs), "\n")
+  cat("  updates     :", show_val(x$update_count), "\n")
   if (identical(x$lambda_input, "auto")) {
     cat("  lambda_mode :", "auto (", x$lambda_method, ")\n", sep = "")
   }

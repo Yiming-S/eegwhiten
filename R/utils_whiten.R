@@ -159,6 +159,273 @@
   .symmetrize(centered_ss / (n - 1L))
 }
 
+# Validate optional sample weights
+.validate_sample_weight <- function(sample_weight, n, allow_null = TRUE) {
+  if (is.null(sample_weight)) {
+    if (allow_null) return(NULL)
+    stop("sample_weight must not be NULL.")
+  }
+  if (!is.numeric(sample_weight) || length(sample_weight) != n || any(!is.finite(sample_weight))) {
+    stop("sample_weight must be a finite numeric vector with length nrow(X).")
+  }
+  if (any(sample_weight < 0)) {
+    stop("sample_weight must be non-negative.")
+  }
+  if (sum(sample_weight) <= .Machine$double.eps) {
+    stop("sum(sample_weight) must be positive.")
+  }
+  as.numeric(sample_weight)
+}
+
+# Weighted first/second moments
+.weighted_moments <- function(X, sample_weight = NULL) {
+  n <- nrow(X)
+  w <- .validate_sample_weight(sample_weight, n, allow_null = TRUE)
+  if (is.null(w)) {
+    w <- rep(1, n)
+  }
+  sw <- sum(w)
+  sw2 <- sum(w ^ 2)
+  xw <- X * w
+  list(
+    sum_w = sw,
+    sum_w2 = sw2,
+    sum_x = colSums(xw),
+    sum_xx = crossprod(X, xw)
+  )
+}
+
+# Covariance from moments with optional centering
+.cov_from_moments <- function(sum_w, sum_w2, sum_x, sum_xx, center = TRUE) {
+  d <- length(sum_x)
+  if (center) {
+    mu <- sum_x / sum_w
+    scatter <- sum_xx - sum_w * tcrossprod(mu)
+  } else {
+    mu <- rep(0, d)
+    scatter <- sum_xx
+  }
+  denom <- sum_w - (sum_w2 / sum_w)
+  if (!is.finite(denom) || denom <= .Machine$double.eps) {
+    stop("Insufficient effective sample size for covariance estimation.")
+  }
+  list(
+    cov = .symmetrize(scatter / denom),
+    mean = mu,
+    denom = denom
+  )
+}
+
+# Empirical covariance with optional sample weights
+.cov_empirical <- function(X, center = TRUE, sample_weight = NULL) {
+  m <- .weighted_moments(X, sample_weight = sample_weight)
+  cfit <- .cov_from_moments(
+    sum_w = m$sum_w,
+    sum_w2 = m$sum_w2,
+    sum_x = m$sum_x,
+    sum_xx = m$sum_xx,
+    center = center
+  )
+  list(
+    cov = cfit$cov,
+    mean = cfit$mean,
+    sum_w = m$sum_w,
+    sum_w2 = m$sum_w2,
+    sum_x = m$sum_x,
+    sum_xx = m$sum_xx,
+    denom = cfit$denom
+  )
+}
+
+# Robust MCD covariance estimator
+.cov_mcd <- function(X, center = TRUE, sample_weight = NULL) {
+  if (!center) {
+    stop("cov_estimator='mcd' requires center = TRUE.")
+  }
+  if (!is.null(sample_weight)) {
+    stop("sample_weight is not supported for cov_estimator='mcd'.")
+  }
+  if (!requireNamespace("robustbase", quietly = TRUE)) {
+    stop("cov_estimator='mcd' requires package 'robustbase'.")
+  }
+  fit <- robustbase::covMcd(X)
+  list(
+    cov = .symmetrize(fit$cov),
+    mean = fit$center,
+    sum_w = NA_real_,
+    sum_w2 = NA_real_,
+    sum_x = NULL,
+    sum_xx = NULL,
+    denom = NA_real_
+  )
+}
+
+# Robust Tyler covariance estimator
+.cov_tyler <- function(X,
+                       center = TRUE,
+                       sample_weight = NULL,
+                       tol = 1e-6,
+                       max_iter = 200,
+                       eps = 1e-6) {
+  if (!center) {
+    stop("cov_estimator='tyler' requires center = TRUE.")
+  }
+  if (!is.numeric(tol) || length(tol) != 1L || !is.finite(tol) || tol <= 0) {
+    stop("tyler_tol must be a positive finite scalar.")
+  }
+  if (!is.numeric(max_iter) || length(max_iter) != 1L || !is.finite(max_iter) || max_iter < 1) {
+    stop("tyler_max_iter must be a positive integer.")
+  }
+  if (!is.numeric(eps) || length(eps) != 1L || !is.finite(eps) || eps <= 0) {
+    stop("tyler_eps must be a positive finite scalar.")
+  }
+  max_iter <- as.integer(max_iter)
+
+  n <- nrow(X)
+  d <- ncol(X)
+  w <- .validate_sample_weight(sample_weight, n, allow_null = TRUE)
+  if (is.null(w)) {
+    w <- rep(1, n)
+  }
+  sw <- sum(w)
+  sw2 <- sum(w ^ 2)
+  mu <- colSums(X * w) / sw
+  Xc <- sweep(X, 2, mu, "-")
+
+  S <- crossprod(Xc) / max(n - 1L, 1L)
+  S <- .symmetrize(S + eps * diag(d))
+  trS <- sum(diag(S))
+  if (!is.finite(trS) || trS <= eps) {
+    S <- diag(1, d)
+  } else {
+    S <- S * (d / trS)
+  }
+
+  converged <- FALSE
+  for (iter in seq_len(max_iter)) {
+    Sinv <- tryCatch(
+      solve(S),
+      error = function(e) solve(S + eps * diag(d))
+    )
+    q <- rowSums((Xc %*% Sinv) * Xc)
+    q <- pmax(q, eps)
+    Xw <- Xc * sqrt(w / q)
+    S_new <- (d / sw) * crossprod(Xw)
+    S_new <- .symmetrize(S_new + eps * diag(d))
+    tr_new <- sum(diag(S_new))
+    if (!is.finite(tr_new) || tr_new <= eps) {
+      S_new <- diag(1, d)
+    } else {
+      S_new <- S_new * (d / tr_new)
+    }
+    rel <- norm(S_new - S, type = "F") / pmax(norm(S, type = "F"), eps)
+    S <- S_new
+    if (rel < tol) {
+      converged <- TRUE
+      break
+    }
+  }
+  if (!converged) {
+    warning("Tyler covariance estimator did not converge within max_iter.")
+  }
+
+  list(
+    cov = S,
+    mean = mu,
+    sum_w = sw,
+    sum_w2 = sw2,
+    sum_x = colSums(X * w),
+    sum_xx = crossprod(X, X * w),
+    denom = sw - (sw2 / sw)
+  )
+}
+
+# Unified covariance estimator dispatch
+.estimate_covariance <- function(X,
+                                 center = TRUE,
+                                 sample_weight = NULL,
+                                 cov_estimator = c("empirical", "mcd", "tyler"),
+                                 tyler_tol = 1e-6,
+                                 tyler_max_iter = 200,
+                                 tyler_eps = 1e-6) {
+  cov_estimator <- match.arg(cov_estimator)
+  if (!is.logical(center) || length(center) != 1L || is.na(center)) {
+    stop("center must be TRUE or FALSE.")
+  }
+  if (cov_estimator == "empirical") {
+    return(.cov_empirical(X, center = center, sample_weight = sample_weight))
+  }
+  if (cov_estimator == "mcd") {
+    return(.cov_mcd(X, center = center, sample_weight = sample_weight))
+  }
+  .cov_tyler(
+    X,
+    center = center,
+    sample_weight = sample_weight,
+    tol = tyler_tol,
+    max_iter = tyler_max_iter,
+    eps = tyler_eps
+  )
+}
+
+# Default unsupervised whitening score
+.default_whitening_score <- function(Z) {
+  d <- check_whitening(Z)
+  -(abs(d$diag_mean - 1) + d$offdiag_frob)
+}
+
+# Default supervised score: nearest-centroid accuracy
+.default_supervised_score <- function(Z_train, y_train, Z_valid, y_valid) {
+  y_train <- as.factor(y_train)
+  y_valid <- as.factor(y_valid)
+  cls <- levels(y_train)
+  centers <- do.call(
+    rbind,
+    lapply(cls, function(cl) {
+      colMeans(Z_train[y_train == cl, , drop = FALSE])
+    })
+  )
+  rownames(centers) <- cls
+  dmat <- as.matrix(stats::dist(rbind(centers, Z_valid)))
+  nc <- length(cls)
+  dv <- dmat[seq_len(nc), (nc + 1):ncol(dmat), drop = FALSE]
+  pred <- cls[max.col(-t(dv), ties.method = "first")]
+  mean(pred == as.character(y_valid))
+}
+
+# Build fold indices for cross-validation
+.make_cv_folds <- function(n, k = 5L, y = NULL, seed = NULL) {
+  if (!is.numeric(k) || length(k) != 1L || !is.finite(k) || k < 2) {
+    stop("cv_folds must be an integer >= 2.")
+  }
+  k <- as.integer(k)
+  if (k > n) stop("cv_folds cannot exceed nrow(X).")
+  if (!is.null(seed)) set.seed(seed)
+
+  if (is.null(y)) {
+    idx <- sample.int(n)
+    return(split(idx, rep(seq_len(k), length.out = n)))
+  }
+
+  if (length(y) != n) {
+    stop("y must have length nrow(X).")
+  }
+
+  y <- as.factor(y)
+  folds <- vector("list", k)
+  for (i in seq_len(k)) folds[[i]] <- integer(0)
+
+  for (cl in levels(y)) {
+    idx <- which(y == cl)
+    idx <- sample(idx)
+    bin <- split(idx, rep(seq_len(k), length.out = length(idx)))
+    for (i in seq_len(k)) {
+      folds[[i]] <- c(folds[[i]], bin[[i]])
+    }
+  }
+  lapply(folds, sort)
+}
+
 # Return component spectrum used for dimensionality decisions
 .component_spectrum_info <- function(Sigma,
                                      method,

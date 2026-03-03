@@ -136,3 +136,94 @@ euclidean_alignment <- function(X_list,
     model = model
   )
 }
+
+#' Apply an EA Model to New Data
+#'
+#' @param object An \code{ea_model} object returned by
+#'   \code{euclidean_alignment()}.
+#' @param newdata A numeric matrix or a list of numeric matrices.
+#' @param ... Unused.
+#'
+#' @return Aligned matrix or list of aligned matrices.
+#' @export
+#' @method predict ea_model
+predict.ea_model <- function(object, newdata, ...) {
+  if (!inherits(object, "ea_model")) {
+    stop("object must be an 'ea_model' object.")
+  }
+
+  apply_one <- function(x) {
+    if (!is.matrix(x) || !is.numeric(x) || any(!is.finite(x))) {
+      stop("newdata must contain only finite numeric matrices.")
+    }
+
+    p <- ncol(object$W)
+    if (identical(object$input_type, "raw")) {
+      if (ncol(x) != p) {
+        stop(sprintf("Raw matrix must have %d columns.", p))
+      }
+      x_use <- if (isTRUE(object$center)) sweep(x, 2, colMeans(x), "-") else x
+      return(x_use %*% object$W)
+    }
+
+    if (nrow(x) != p || ncol(x) != p) {
+      stop(sprintf("Covariance matrix must be %d x %d.", p, p))
+    }
+    if (!isTRUE(all.equal(x, t(x), tolerance = 1e-8))) {
+      stop("Covariance matrix must be symmetric.")
+    }
+    t(object$W) %*% x %*% object$W
+  }
+
+  if (is.list(newdata)) {
+    return(lapply(newdata, apply_one))
+  }
+  apply_one(newdata)
+}
+
+#' Inverse Transform for EA-Aligned Data
+#'
+#' @param Z An aligned matrix (or list of aligned matrices).
+#' @param model An \code{ea_model} object.
+#' @param center Optional center vector added back for raw-data inverse mode.
+#'
+#' @return Matrix (or list of matrices) mapped back from EA-aligned space.
+#' @export
+inverse_ea <- function(Z, model, center = NULL) {
+  if (!inherits(model, "ea_model")) {
+    stop("model must be an 'ea_model' object.")
+  }
+
+  A <- .sqrtm_spd(model$reference_cov, eps = model$eps)
+
+  apply_one <- function(z) {
+    if (!is.matrix(z) || !is.numeric(z) || any(!is.finite(z))) {
+      stop("Z must contain only finite numeric matrices.")
+    }
+
+    p <- ncol(model$W)
+    if (identical(model$input_type, "raw")) {
+      if (ncol(z) != p) {
+        stop(sprintf("Aligned raw matrix must have %d columns.", p))
+      }
+      x <- z %*% A
+      if (!is.null(center)) {
+        if (!is.numeric(center) || length(center) != p || any(!is.finite(center))) {
+          stop("center must be a finite numeric vector with length ncol(model$W).")
+        }
+        x <- sweep(x, 2, center, "+")
+      }
+      return(x)
+    }
+
+    if (nrow(z) != p || ncol(z) != p) {
+      stop(sprintf("Aligned covariance must be %d x %d.", p, p))
+    }
+    .symmetrize(t(A) %*% z %*% A)
+  }
+
+  if (is.list(Z)) {
+    return(lapply(Z, apply_one))
+  }
+  apply_one(Z)
+}

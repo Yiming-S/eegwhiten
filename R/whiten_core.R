@@ -151,6 +151,13 @@ whiten_fit <- function(Sigma,
 #'   Values between 0 and 1 mix the two. Useful for high-dimensional/low-sample EEG data.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param sample_weight Optional non-negative sample weights with length
+#'   \code{nrow(X)}.
+#' @param cov_estimator Covariance estimator; one of \code{"empirical"},
+#'   \code{"mcd"}, or \code{"tyler"}.
+#' @param tyler_tol Convergence tolerance for \code{cov_estimator = "tyler"}.
+#' @param tyler_max_iter Maximum iterations for Tyler covariance estimation.
+#' @param tyler_eps Numerical stabilization floor for Tyler estimation.
 #' @param eig_method Eigen solver backend; one of \code{"auto"},
 #'   \code{"base"}, or \code{"rspectra"}.
 #' @param fast Logical; if \code{TRUE}, allow faster approximate settings
@@ -168,12 +175,18 @@ whiten_model <- function(X, center = TRUE,
                          var_threshold = NULL,
                          lambda = "auto",
                          lambda_method = c("oas", "lw"),
+                         sample_weight = NULL,
+                         cov_estimator = c("empirical", "mcd", "tyler"),
+                         tyler_tol = 1e-6,
+                         tyler_max_iter = 200,
+                         tyler_eps = 1e-6,
                          eig_method = c("auto", "base", "rspectra"),
                          fast = FALSE,
                          sign_reference = NULL) {
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  cov_estimator <- match.arg(cov_estimator)
   eig_method <- match.arg(eig_method)
   if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
     stop("fast must be TRUE or FALSE.")
@@ -200,6 +213,13 @@ whiten_model <- function(X, center = TRUE,
 
   .check_unit_interval(lambda, "lambda", allow_char_auto = TRUE)
   lambda_auto <- is.character(lambda)
+  sample_weight <- .validate_sample_weight(sample_weight, n, allow_null = TRUE)
+  if (lambda_auto && !is.null(sample_weight)) {
+    stop("lambda='auto' is not supported with sample_weight. Set a numeric lambda in [0, 1].")
+  }
+  if (lambda_auto && cov_estimator != "empirical") {
+    stop("lambda='auto' is only supported with cov_estimator='empirical'.")
+  }
 
   # Validation for n_comp
   if (!is.null(n_comp)) {
@@ -244,19 +264,23 @@ whiten_model <- function(X, center = TRUE,
     colnames(X) <- paste0("V", seq_len(d))
   }
   
-  # 1. Centering
-  mu <- if (center) colMeans(X) else rep(0, d)
+  # 1. Covariance estimation
+  cov_fit <- .estimate_covariance(
+    X,
+    center = center,
+    sample_weight = sample_weight,
+    cov_estimator = cov_estimator,
+    tyler_tol = tyler_tol,
+    tyler_max_iter = tyler_max_iter,
+    tyler_eps = tyler_eps
+  )
+  mu <- cov_fit$mean
   names(mu) <- colnames(X)
 
-  # 2. Covariance estimation with optional shrinkage
-  Xc <- NULL
+  # 2. Optional shrinkage
+  S <- cov_fit$cov
   if (lambda_auto) {
     Xc <- if (center) sweep(X, 2, mu, "-") else X
-    S <- crossprod(Xc) / (n - 1L)
-  } else {
-    S <- .cov_from_mean(X, mu)
-  }
-  if (lambda_auto) {
     lambda <- if (lambda_method == "oas") .lambda_oas(Xc) else .lambda_lw(Xc)
   }
 
@@ -336,6 +360,7 @@ whiten_model <- function(X, center = TRUE,
       W      = W,
       Wt     = t(W),
       center = mu,
+      center_enabled = center,
       method = method,
       n_comp = n_comp_final,
       var_threshold = var_threshold,
@@ -345,11 +370,19 @@ whiten_model <- function(X, center = TRUE,
       lambda_method = if (lambda_auto) lambda_method else NA_character_,
       eig_method = eig_method,
       fast = fast,
+      cov_estimator = cov_estimator,
+      sample_weighted = !is.null(sample_weight),
       U = decomp$U,
       D = decomp$D,
       inv_tW = inv_tW,
       sign_basis = sign_basis,
       cov = S,
+      n_obs = n,
+      stat_sum_w = cov_fit$sum_w,
+      stat_sum_w2 = cov_fit$sum_w2,
+      stat_sum_x = cov_fit$sum_x,
+      stat_sum_xx = cov_fit$sum_xx,
+      update_count = 0L,
       dim_in = d,
       dim_out = nrow(W)
     ),

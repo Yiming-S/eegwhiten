@@ -22,6 +22,13 @@
 #'   strength.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param sample_weight Optional non-negative sample weights with
+#'   length \code{nrow(X)}.
+#' @param cov_estimator Covariance estimator; one of \code{"empirical"},
+#'   \code{"mcd"}, or \code{"tyler"}.
+#' @param tyler_tol Convergence tolerance for \code{cov_estimator = "tyler"}.
+#' @param tyler_max_iter Maximum iterations for Tyler covariance estimation.
+#' @param tyler_eps Numerical stabilization floor for Tyler estimation.
 #' @param eig_method Eigen solver backend; one of \code{"auto"},
 #'   \code{"base"}, or \code{"rspectra"}.
 #' @param fast Logical; if \code{TRUE}, allow faster approximate settings
@@ -56,12 +63,18 @@ whiten_matrix <- function(X, center = TRUE,
                           var_threshold = NULL,
                           lambda = "auto",
                           lambda_method = c("oas", "lw"),
+                          sample_weight = NULL,
+                          cov_estimator = c("empirical", "mcd", "tyler"),
+                          tyler_tol = 1e-6,
+                          tyler_max_iter = 200,
+                          tyler_eps = 1e-6,
                           eig_method = c("auto", "base", "rspectra"),
                           fast = FALSE,
                           sign_reference = NULL) {
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  cov_estimator <- match.arg(cov_estimator)
   eig_method <- match.arg(eig_method)
   
   model <- whiten_model(
@@ -72,6 +85,11 @@ whiten_matrix <- function(X, center = TRUE,
     var_threshold = var_threshold,
     lambda = lambda,
     lambda_method = lambda_method,
+    sample_weight = sample_weight,
+    cov_estimator = cov_estimator,
+    tyler_tol = tyler_tol,
+    tyler_max_iter = tyler_max_iter,
+    tyler_eps = tyler_eps,
     eig_method = eig_method,
     fast = fast,
     sign_reference = sign_reference
@@ -112,6 +130,15 @@ whiten_matrix <- function(X, center = TRUE,
 #'   strength.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param sample_weight Optional sample weights.
+#'   For a single matrix, provide one numeric vector.
+#'   For multiple matrices in \code{mode = "independent"}, provide a list
+#'   with one vector per matrix.
+#' @param cov_estimator Covariance estimator; one of \code{"empirical"},
+#'   \code{"mcd"}, or \code{"tyler"}.
+#' @param tyler_tol Convergence tolerance for \code{cov_estimator = "tyler"}.
+#' @param tyler_max_iter Maximum iterations for Tyler covariance estimation.
+#' @param tyler_eps Numerical stabilization floor for Tyler estimation.
 #' @param eig_method Eigen solver backend; one of \code{"auto"},
 #'   \code{"base"}, or \code{"rspectra"}.
 #' @param fast Logical; if \code{TRUE}, allow faster approximate settings
@@ -146,6 +173,11 @@ whiten_batch <- function(X_list, center = TRUE,
                          var_threshold = NULL,
                          lambda = "auto",
                          lambda_method = c("oas", "lw"),
+                         sample_weight = NULL,
+                         cov_estimator = c("empirical", "mcd", "tyler"),
+                         tyler_tol = 1e-6,
+                         tyler_max_iter = 200,
+                         tyler_eps = 1e-6,
                          eig_method = c("auto", "base", "rspectra"),
                          fast = FALSE,
                          sign_reference = NULL,
@@ -160,6 +192,7 @@ whiten_batch <- function(X_list, center = TRUE,
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  cov_estimator <- match.arg(cov_estimator)
   eig_method <- match.arg(eig_method)
   mode <- match.arg(mode)
   ea_mean <- match.arg(ea_mean)
@@ -188,14 +221,45 @@ whiten_batch <- function(X_list, center = TRUE,
     parallel::mclapply(data, fun, mc.cores = n_cores)
   }
 
+  resolve_weights <- function(w_arg, mats, mode) {
+    n_list <- length(mats)
+    out <- vector("list", n_list)
+    if (is.null(w_arg)) return(out)
+
+    if (is.list(w_arg)) {
+      if (length(w_arg) != n_list) {
+        stop("When sample_weight is a list, it must have the same length as X_list.")
+      }
+      for (i in seq_len(n_list)) {
+        out[[i]] <- .validate_sample_weight(w_arg[[i]], nrow(mats[[i]]), allow_null = TRUE)
+      }
+      return(out)
+    }
+
+    if (!is.numeric(w_arg) || any(!is.finite(w_arg))) {
+      stop("sample_weight must be NULL, a numeric vector, or a list of numeric vectors.")
+    }
+
+    if (n_list == 1L || identical(mode, "shared_model")) {
+      out[[1L]] <- .validate_sample_weight(w_arg, nrow(mats[[1L]]), allow_null = FALSE)
+      return(out)
+    }
+
+    stop("For multiple matrices in independent mode, sample_weight must be a list with one weight vector per matrix.")
+  }
+
   if (shared_model && identical(mode, "independent")) {
     mode <- "shared_model"
   }
   if (mode == "independent" && length(X_list) > 1L) {
     warning("Independent per-matrix whitening may remove between-session covariance structure. Consider mode = 'ea' or mode = 'shared_model'.")
   }
+  weight_list <- resolve_weights(sample_weight, X_list, mode)
   
   if (mode == "ea") {
+    if (any(vapply(weight_list, Negate(is.null), logical(1)))) {
+      warning("sample_weight is ignored when mode = 'ea'.")
+    }
     ea <- euclidean_alignment(
       X_list,
       input = ea_input,
@@ -235,6 +299,11 @@ whiten_batch <- function(X_list, center = TRUE,
       var_threshold = var_threshold,
       lambda = lambda,
       lambda_method = lambda_method,
+      sample_weight = weight_list[[1L]],
+      cov_estimator = cov_estimator,
+      tyler_tol = tyler_tol,
+      tyler_max_iter = tyler_max_iter,
+      tyler_eps = tyler_eps,
       eig_method = eig_method,
       fast = fast,
       sign_reference = sign_reference
@@ -262,16 +331,21 @@ whiten_batch <- function(X_list, center = TRUE,
   }
   
   apply_list(
-    X_list,
-    function(X) {
+    seq_along(X_list),
+    function(i) {
       whiten_matrix(
-        X,
+        X_list[[i]],
         center = center,
         method = method,
         n_comp = n_comp,
         var_threshold = var_threshold,
         lambda = lambda,
         lambda_method = lambda_method,
+        sample_weight = weight_list[[i]],
+        cov_estimator = cov_estimator,
+        tyler_tol = tyler_tol,
+        tyler_max_iter = tyler_max_iter,
+        tyler_eps = tyler_eps,
         eig_method = eig_method,
         fast = fast,
         sign_reference = sign_reference

@@ -296,3 +296,140 @@ test_that("EA default mean method is logeuclid", {
   model <- attr(out, "model")
   expect_equal(model$mean_method, "logeuclid")
 })
+
+test_that("sample weights are supported in model and wrappers", {
+  set.seed(9001)
+  X <- matrix(rnorm(180 * 6), 180, 6)
+  w <- rexp(nrow(X), rate = 1) + 0.1
+
+  res <- whiten_matrix(
+    X,
+    method = "PCA",
+    n_comp = 4,
+    lambda = 0.1,
+    sample_weight = w,
+    cov_estimator = "empirical"
+  )
+  expect_true(isTRUE(res$model$sample_weighted))
+  expect_equal(as.numeric(res$model$center), colSums(X * w) / sum(w), tolerance = 1e-10)
+
+  X2 <- matrix(rnorm(120 * 6), 120, 6)
+  w2 <- rexp(nrow(X2), rate = 1) + 0.1
+  b <- suppressWarnings(whiten_batch(
+    list(X, X2),
+    mode = "independent",
+    method = "PCA",
+    n_comp = 4,
+    lambda = 0.1,
+    sample_weight = list(w, w2),
+    cov_estimator = "empirical"
+  ))
+  expect_equal(length(b), 2)
+  expect_true(isTRUE(b[[1]]$model$sample_weighted))
+  expect_true(isTRUE(b[[2]]$model$sample_weighted))
+})
+
+test_that("robust covariance estimators are available", {
+  set.seed(9002)
+  X <- matrix(rnorm(240 * 6), 240, 6)
+
+  m_tyler <- whiten_model(
+    X,
+    method = "ZCA",
+    lambda = 0,
+    cov_estimator = "tyler",
+    tyler_max_iter = 100
+  )
+  expect_equal(m_tyler$cov_estimator, "tyler")
+  expect_true(all(is.finite(m_tyler$W)))
+
+  skip_if_not_installed("robustbase")
+  m_mcd <- whiten_model(X, method = "ZCA", lambda = 0, cov_estimator = "mcd")
+  expect_equal(m_mcd$cov_estimator, "mcd")
+  expect_true(all(is.finite(m_mcd$W)))
+})
+
+test_that("incremental update matches full refit for empirical covariance", {
+  set.seed(9003)
+  X1 <- matrix(rnorm(160 * 7), 160, 7)
+  X2 <- matrix(rnorm(140 * 7), 140, 7)
+  w1 <- rexp(nrow(X1), rate = 1) + 0.1
+  w2 <- rexp(nrow(X2), rate = 1) + 0.1
+
+  m1 <- whiten_model(X1, method = "ZCA", lambda = 0.15, sample_weight = w1)
+  m_upd <- whiten_model_update(m1, X2, sample_weight = w2)
+  m_full <- whiten_model(rbind(X1, X2), method = "ZCA", lambda = 0.15, sample_weight = c(w1, w2))
+
+  expect_equal(m_upd$center, m_full$center, tolerance = 1e-10)
+  expect_equal(m_upd$cov, m_full$cov, tolerance = 1e-10)
+  expect_equal(m_upd$W, m_full$W, tolerance = 1e-8)
+  expect_equal(m_upd$update_count, 1L)
+  expect_equal(m_upd$n_obs, nrow(X1) + nrow(X2))
+})
+
+test_that("auto tuning returns best model and ranking", {
+  set.seed(9004)
+  X <- matrix(rnorm(150 * 6), 150, 6)
+
+  tuned <- auto_tune_whitening(
+    X,
+    methods = c("PCA", "ZCA"),
+    n_comp_grid = c(3),
+    lambda_grid = list(0, 0.1),
+    cv_folds = 3,
+    scoring = "unsupervised",
+    seed = 42,
+    top_n = 4
+  )
+
+  expect_s3_class(tuned, "whiten_tune")
+  expect_s3_class(tuned$best_model, "whiten_model")
+  expect_true(is.data.frame(tuned$ranking))
+  expect_gt(nrow(tuned$ranking), 0)
+  expect_true(all(is.finite(tuned$ranking$mean_score)))
+})
+
+test_that("ea_model predict and inverse are consistent", {
+  set.seed(9005)
+  X1 <- matrix(rnorm(180 * 5), 180, 5)
+  X2 <- matrix(rnorm(160 * 5), 160, 5)
+
+  ea <- euclidean_alignment(list(X1, X2), input = "raw", center = TRUE)
+  Z1 <- predict(ea$model, X1)
+  X1_rec <- inverse_ea(Z1, ea$model)
+  X1_centered <- sweep(X1, 2, colMeans(X1), "-")
+
+  expect_equal(dim(Z1), dim(X1))
+  expect_equal(dim(X1_rec), dim(X1))
+  expect_lt(mean((X1_rec - X1_centered) ^ 2), 1e-20)
+
+  C <- cov(X1)
+  ea_cov <- euclidean_alignment(list(C, C * 1.2), input = "cov")
+  C_aligned <- predict(ea_cov$model, C)
+  C_rec <- inverse_ea(C_aligned, ea_cov$model)
+  expect_equal(C_rec, C, tolerance = 1e-8)
+})
+
+test_that("one-click whitening report is generated", {
+  set.seed(9006)
+  X <- matrix(rnorm(140 * 6), 140, 6)
+  tuned <- auto_tune_whitening(
+    X,
+    methods = c("PCA", "ZCA"),
+    n_comp_grid = c(3),
+    lambda_grid = list(0.1),
+    cv_folds = 3,
+    seed = 11
+  )
+
+  out_file <- tempfile(fileext = ".md")
+  report_path <- report_whitening(tuned, data = X, file = out_file)
+
+  expect_equal(report_path, out_file)
+  expect_true(file.exists(out_file))
+
+  txt <- readLines(out_file, warn = FALSE)
+  expect_true(any(grepl("^# Whitening Report$", txt)))
+  expect_true(any(grepl("^## Whitening Diagnostics$", txt)))
+  expect_true(any(grepl("^## Tuning Summary$", txt)))
+})
