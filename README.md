@@ -25,7 +25,7 @@ Whitening transforms for EEG and multichannel signals using a model-based API.
 
 ```r
 # install.packages("devtools")
-devtools::install_github("YimingShen/eegwhiten")
+devtools::install_github("Yiming-S/eegwhiten")
 ```
 
 For local development:
