@@ -53,5 +53,5 @@ print(s)
 #>   weighted_fit: FALSE 
 #>   n_obs       : 200 
 #>   updates     : 0 
-#>   whitening   : diag_mean=0.998, offdiag_frob=1.743e-15
+#>   whitening   : diag_mean=0.998, offdiag_frob=1.505e-15
 ```

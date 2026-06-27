@@ -1,5 +1,24 @@
 # Changelog
 
+## eegwhiten 0.4.1
+
+- [`predict()`](https://rdrr.io/r/stats/predict.html) now works directly
+  on an
+  [`auto_tune_whitening()`](https://yiming-s.github.io/eegwhiten/reference/auto_tune_whitening.md)
+  result, applying the selected best model.
+- The scale-invariant positive-definiteness fix now also covers
+  [`whiten_fit()`](https://yiming-s.github.io/eegwhiten/reference/whiten_fit.md)
+  and the standalone
+  [`ZCA_cor()`](https://yiming-s.github.io/eegwhiten/reference/ZCA_cor.md)
+  /
+  [`PCA_cor()`](https://yiming-s.github.io/eegwhiten/reference/PCA_cor.md)
+  functions (correlation-based methods check the correlation matrix),
+  and the relative tolerance is a single named constant.
+- The introductory vignette now covers the alignment, Riemannian
+  tangent-space, relative-whitening, shrinkage-target, and online-update
+  features.
+- Refreshed the package description; removed dead internal helpers.
+
 ## eegwhiten 0.4.0
 
 ### Correctness

@@ -106,6 +106,8 @@ Tangent-space mapping for SPD covariance matrices.
   : Print summary for a whitening model
 - [`print(`*`<whiten_tune>`*`)`](https://yiming-s.github.io/eegwhiten/reference/print.whiten_tune.md)
   : Print a whitening tuning result
+- [`predict(`*`<whiten_tune>`*`)`](https://yiming-s.github.io/eegwhiten/reference/predict.whiten_tune.md)
+  : Apply the best tuned whitening model to new data
 - [`print(`*`<recenter>`*`)`](https://yiming-s.github.io/eegwhiten/reference/print.recenter.md)
   : Print a recentering model
 - [`predict(`*`<recenter>`*`)`](https://yiming-s.github.io/eegwhiten/reference/predict.recenter.md)
