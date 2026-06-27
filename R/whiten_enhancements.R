@@ -14,6 +14,11 @@
 #'   \code{ncol(X_new) = model$dim_in}.
 #' @param sample_weight Optional non-negative sample weights for
 #'   \code{X_new}.
+#' @param decay Forgetting factor in \code{(0, 1]} applied to the stored
+#'   moments before adding the new batch. \code{decay = 1} (default) gives the
+#'   standard cumulative update that weights all observations equally;
+#'   \code{decay < 1} exponentially down-weights past data, which lets the model
+#'   track non-stationary drift in streaming / online settings.
 #'
 #' @return Updated \code{whiten_model} object.
 #'
@@ -27,13 +32,20 @@
 #' m_updated <- whiten_model_update(m, X2)
 #' m_updated$n_obs
 #'
+#' # Online tracking with exponential forgetting
+#' m_drift <- whiten_model_update(m, X2, decay = 0.9)
+#'
 #' @export
-whiten_model_update <- function(model, X_new, sample_weight = NULL) {
+whiten_model_update <- function(model, X_new, sample_weight = NULL, decay = 1) {
   if (!inherits(model, "whiten_model")) {
     stop("model must be a 'whiten_model' object.")
   }
   if (!is.matrix(X_new) || !is.numeric(X_new) || any(!is.finite(X_new))) {
     stop("X_new must be a finite numeric matrix.")
+  }
+  if (!is.numeric(decay) || length(decay) != 1L || !is.finite(decay) ||
+      decay <= 0 || decay > 1) {
+    stop("decay must be a single numeric value in (0, 1].")
   }
 
   d <- if (!is.null(model$dim_in)) model$dim_in else ncol(model$W)
@@ -54,10 +66,14 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL) {
   w_new <- .validate_sample_weight(sample_weight, nrow(X_new), allow_null = TRUE)
   m_new <- .weighted_moments(X_new, sample_weight = w_new)
 
-  sum_w <- model$stat_sum_w + m_new$sum_w
-  sum_w2 <- model$stat_sum_w2 + m_new$sum_w2
-  sum_x <- model$stat_sum_x + m_new$sum_x
-  sum_xx <- model$stat_sum_xx + m_new$sum_xx
+  # Exponential forgetting: down-weight stored moments by `decay` before adding
+  # the new batch. sum_w2 scales by decay^2 so the variance denominator
+  # sum_w - sum_w2 / sum_w shrinks consistently (equivalent to scaling every
+  # past weight by decay).
+  sum_w <- decay * model$stat_sum_w + m_new$sum_w
+  sum_w2 <- decay^2 * model$stat_sum_w2 + m_new$sum_w2
+  sum_x <- decay * model$stat_sum_x + m_new$sum_x
+  sum_xx <- decay * model$stat_sum_xx + m_new$sum_xx
 
   center_enabled <- if (!is.null(model$center_enabled)) {
     isTRUE(model$center_enabled)
@@ -79,12 +95,9 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL) {
 
   lambda <- if (!is.null(model$lambda) && is.finite(model$lambda)) model$lambda else 0
   .check_unit_interval(lambda, "lambda")
+  shrink_target <- if (!is.null(model$shrink_target)) model$shrink_target else "identity"
 
-  if (lambda > 0) {
-    target_val <- mean(diag(S))
-    target_mat <- diag(target_val, d)
-    S <- (1 - lambda) * S + lambda * target_mat
-  }
+  S <- .shrink_cov(S, lambda, target = shrink_target)
 
   method <- .normalize_whiten_method(model$method)
   is_reduction <- .is_reduction_method(method)
@@ -100,8 +113,19 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL) {
   n_comp_final <- if (is_reduction) model$n_comp else NULL
   var_threshold <- if (!is.null(model$var_threshold)) model$var_threshold else NULL
 
+  is_cov_based <- method %in% c("PCA", "SVD", "ZCA")
   need_full_eigs <- !is_reduction || !is.null(var_threshold) || is.null(n_comp_final) || identical(eig_method, "base")
-  eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE, return_eigen = need_full_eigs)
+  precomp_eig <- NULL
+  if (need_full_eigs && is_cov_based) {
+    .check_symmetric_pd(S, require_pd = FALSE, return_eigen = FALSE)
+    precomp_eig <- .eigen_spd(S, k = d, method = eig_method, fast = fast)
+    eig_shrunk <- precomp_eig$values
+    if (any(eig_shrunk <= 1e-8)) {
+      stop(sprintf("Updated covariance must be positive-definite. Min eigenvalue = %g. Increase lambda.", min(eig_shrunk)))
+    }
+  } else {
+    eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE, return_eigen = need_full_eigs)
+  }
   attr(S, ".checked_spd") <- TRUE
 
   explained_var <- NA_real_
@@ -148,6 +172,9 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL) {
   if (method %in% c("PCA", "PCA-cor", "SVD", "ZCA", "ZCA-cor")) {
     fit_args$eig_method <- eig_method
     fit_args$fast <- fast
+  }
+  if (!is.null(precomp_eig)) {
+    fit_args$precomp <- precomp_eig
   }
 
   res <- do.call(.method_to_function(method), fit_args)
@@ -206,6 +233,23 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL) {
   format(signif(x, digits = digits), trim = TRUE, scientific = FALSE)
 }
 
+# Score a single train/valid split, shared by the full-refit and analytic paths.
+.tune_score <- function(Z_train, Z_valid, y_train, y_valid, scoring, score_fn) {
+  tryCatch({
+    if (!is.null(score_fn)) {
+      if (identical(scoring, "accuracy")) {
+        score_fn(Z_train, y_train, Z_valid, y_valid)
+      } else {
+        score_fn(Z_valid)
+      }
+    } else if (identical(scoring, "accuracy")) {
+      .default_supervised_score(Z_train, y_train, Z_valid, y_valid)
+    } else {
+      .default_whitening_score(Z_valid)
+    }
+  }, error = function(e) NA_real_)
+}
+
 #' Automatically Tune Whitening Hyperparameters
 #'
 #' Performs cross-validation across candidate whitening configurations and
@@ -220,6 +264,8 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL) {
 #' @param lambda_grid Candidate shrinkage values. Can include numeric values
 #'   in \code{[0, 1]} and \code{"auto"}.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
+#' @param shrink_target Covariance shrinkage target passed to
+#'   \code{\link{whiten_model}}; one of \code{"identity"} or \code{"diagonal"}.
 #' @param cov_estimator_grid Candidate covariance estimators.
 #' @param sample_weight Optional sample weights (used in training folds).
 #' @param cv_folds Number of folds.
@@ -236,6 +282,18 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL) {
 #' @param fast Logical; fast mode for eigensolver.
 #' @param sign_reference Optional reference vectors for sign stabilization.
 #' @param top_n Number of top configurations retained in the summary table.
+#' @param fast_tune Logical; if \code{TRUE} (default), use an analytic shrinkage
+#'   path for covariance-based methods (\code{"PCA"}, \code{"SVD"}, \code{"ZCA"})
+#'   with \code{shrink_target = "identity"}, no \code{sample_weight}, and no
+#'   \code{sign_reference}. Each fold's covariance is eigendecomposed once (with
+#'   an exact base solver, so \code{eig_method} and \code{fast} are not used for
+#'   these candidates) and reused across the entire
+#'   \code{lambda}/\code{n_comp}/\code{var_threshold} grid, which can be
+#'   dramatically faster. Set to \code{FALSE} to force a full model refit per
+#'   candidate. Results are equivalent up to floating point; candidates whose
+#'   resolved \code{lambda} reaches 1 (an isotropic, degenerate target) are
+#'   automatically routed through the full refit so scoring and the returned
+#'   model stay consistent.
 #'
 #' @return A list of class \code{whiten_tune} containing the best model,
 #'   best parameters, and cross-validation ranking.
@@ -262,6 +320,7 @@ auto_tune_whitening <- function(X,
                                 var_threshold_grid = NULL,
                                 lambda_grid = list("auto", 0, 0.05, 0.1),
                                 lambda_method = c("oas", "lw"),
+                                shrink_target = c("identity", "diagonal"),
                                 cov_estimator_grid = "empirical",
                                 sample_weight = NULL,
                                 cv_folds = 5L,
@@ -274,7 +333,8 @@ auto_tune_whitening <- function(X,
                                 eig_method = c("auto", "base", "rspectra"),
                                 fast = FALSE,
                                 sign_reference = NULL,
-                                top_n = 5L) {
+                                top_n = 5L,
+                                fast_tune = TRUE) {
   if (!is.matrix(X) || !is.numeric(X) || any(!is.finite(X))) {
     stop("X must be a finite numeric matrix.")
   }
@@ -284,8 +344,12 @@ auto_tune_whitening <- function(X,
   if (d < 2L) stop("X must have at least 2 columns.")
 
   lambda_method <- match.arg(lambda_method)
+  shrink_target <- match.arg(shrink_target)
   eig_method <- match.arg(eig_method)
   scoring <- match.arg(scoring)
+  if (!is.logical(fast_tune) || length(fast_tune) != 1L || is.na(fast_tune)) {
+    stop("fast_tune must be TRUE or FALSE.")
+  }
 
   if (!is.null(score_fn) && !is.function(score_fn)) {
     stop("score_fn must be NULL or a function.")
@@ -307,7 +371,7 @@ auto_tune_whitening <- function(X,
     if (!is.numeric(var_threshold_grid) || any(!is.finite(var_threshold_grid))) {
       stop("var_threshold_grid must be numeric.")
     }
-    invisible(vapply(var_threshold_grid, .check_var_threshold, numeric(0)))
+    for (vt in var_threshold_grid) .check_var_threshold(vt)
     var_threshold_grid <- sort(unique(as.numeric(var_threshold_grid)))
   }
 
@@ -399,7 +463,126 @@ auto_tune_whitening <- function(X,
     stop("No valid tuning candidates were generated. Check lambda/cov_estimator/sample_weight compatibility.")
   }
 
-  eval_candidate <- function(cfg) {
+  # Covariance-based methods with the identity target admit an analytic
+  # shrinkage path: shrinkage toward (tr(S)/d) I leaves the eigenvectors of the
+  # covariance unchanged, so a single eigendecomposition per (fold, estimator)
+  # serves every lambda / n_comp / var_threshold candidate.
+  fast_eligible <- isTRUE(fast_tune) && identical(shrink_target, "identity") &&
+    is.null(sample_weight) && is.null(sign_reference)
+  cov_based_methods <- c("PCA", "SVD", "ZCA")
+  any_cov_based <- any(methods %in% cov_based_methods)
+
+  fold_cache <- NULL
+  if (fast_eligible && any_cov_based) {
+    fold_cache <- lapply(seq_along(folds), function(i) {
+      valid_idx <- folds[[i]]
+      train_idx <- setdiff(seq_len(n), valid_idx)
+      X_train <- X[train_idx, , drop = FALSE]
+      X_valid <- X[valid_idx, , drop = FALSE]
+
+      per_ce <- list()
+      for (ce in cov_estimator_grid) {
+        per_ce[[ce]] <- tryCatch({
+          cov_fit <- .estimate_covariance(
+            X_train, center = TRUE, sample_weight = NULL,
+            cov_estimator = ce, tyler_tol = tyler_tol,
+            tyler_max_iter = tyler_max_iter, tyler_eps = tyler_eps
+          )
+          mu <- cov_fit$mean
+          ev <- .eigen_spd(.symmetrize(cov_fit$cov), k = d, method = "base", fast = FALSE)
+          Xc_tr <- .center_cols(X_train, mu)
+          Xc_va <- .center_cols(X_valid, mu)
+          list(
+            ok = TRUE,
+            U = ev$vectors,
+            d0 = ev$values,
+            Xc_tr = Xc_tr,
+            Xc_va = Xc_va,
+            lam_oas = if (ce == "empirical") .lambda_oas(Xc_tr) else NA_real_,
+            lam_lw = if (ce == "empirical") .lambda_lw(Xc_tr) else NA_real_
+          )
+        }, error = function(e) list(ok = FALSE))
+      }
+      list(idx_train = train_idx, idx_valid = valid_idx, ce = per_ce)
+    })
+  }
+
+  candidate_fast_ok <- function(cfg) {
+    if (is.null(fold_cache) || !(cfg$method %in% cov_based_methods)) return(FALSE)
+    # Fall back to a full refit when shrinkage is (near-)isotropic (lambda ~ 1).
+    # There the shrunk covariance is a multiple of the identity, the data
+    # eigenvectors become undefined, and the analytic path (which keeps the
+    # unshrunk directions) would disagree with the final whiten_model refit.
+    # Routing the whole candidate through the slow path keeps scoring and the
+    # returned model consistent.
+    for (i in seq_along(folds)) {
+      entry <- fold_cache[[i]]$ce[[cfg$cov_estimator]]
+      if (is.null(entry) || !isTRUE(entry$ok)) next
+      lam <- if (is.character(cfg$lambda)) {
+        if (lambda_method == "oas") entry$lam_oas else entry$lam_lw
+      } else {
+        cfg$lambda
+      }
+      if (is.finite(lam) && lam >= 1 - 1e-9) return(FALSE)
+    }
+    TRUE
+  }
+
+  eval_fast <- function(cfg) {
+    fold_scores <- rep(NA_real_, length(folds))
+    n_success <- 0L
+    for (i in seq_along(folds)) {
+      fc <- fold_cache[[i]]
+      entry <- fc$ce[[cfg$cov_estimator]]
+      if (is.null(entry) || !isTRUE(entry$ok)) next
+
+      lam <- if (is.character(cfg$lambda)) {
+        if (lambda_method == "oas") entry$lam_oas else entry$lam_lw
+      } else {
+        cfg$lambda
+      }
+      if (!is.finite(lam)) next
+
+      d_lam <- .shrink_eigvals_identity(entry$d0, lam)
+      if (any(d_lam <= 1e-8)) next
+
+      k <- NULL
+      if (cfg$method %in% c("PCA", "SVD")) {
+        if (!is.null(cfg$n_comp)) {
+          k <- cfg$n_comp
+        } else if (!is.null(cfg$var_threshold)) {
+          k <- .n_comp_from_threshold(pmax(d_lam, 0), cfg$var_threshold)
+        } else {
+          k <- length(d_lam)
+        }
+      }
+
+      wb <- .whiten_from_cov_eig(cfg$method, entry$U, d_lam, n_comp = k)
+      Wt <- t(wb$W)
+      Z_train <- entry$Xc_tr %*% Wt
+      Z_valid <- entry$Xc_va %*% Wt
+
+      score <- .tune_score(
+        Z_train, Z_valid,
+        if (identical(scoring, "accuracy")) y[fc$idx_train] else NULL,
+        if (identical(scoring, "accuracy")) y[fc$idx_valid] else NULL,
+        scoring, score_fn
+      )
+      if (is.numeric(score) && length(score) == 1L && is.finite(score)) {
+        fold_scores[[i]] <- as.numeric(score)
+        n_success <- n_success + 1L
+      }
+    }
+    valid <- is.finite(fold_scores)
+    list(
+      scores = fold_scores,
+      mean_score = if (any(valid)) mean(fold_scores[valid]) else -Inf,
+      sd_score = if (sum(valid) > 1L) stats::sd(fold_scores[valid]) else NA_real_,
+      n_success = n_success
+    )
+  }
+
+  eval_slow <- function(cfg) {
     fold_scores <- rep(NA_real_, length(folds))
     n_success <- 0L
 
@@ -420,6 +603,7 @@ auto_tune_whitening <- function(X,
           var_threshold = cfg$var_threshold,
           lambda = cfg$lambda,
           lambda_method = lambda_method,
+          shrink_target = shrink_target,
           sample_weight = w_train,
           cov_estimator = cfg$cov_estimator,
           tyler_tol = tyler_tol,
@@ -442,19 +626,12 @@ auto_tune_whitening <- function(X,
         next
       }
 
-      score <- tryCatch({
-        if (!is.null(score_fn)) {
-          if (identical(scoring, "accuracy")) {
-            score_fn(Z_train, y[train_idx], Z_valid, y[valid_idx])
-          } else {
-            score_fn(Z_valid)
-          }
-        } else if (identical(scoring, "accuracy")) {
-          .default_supervised_score(Z_train, y[train_idx], Z_valid, y[valid_idx])
-        } else {
-          .default_whitening_score(Z_valid)
-        }
-      }, error = function(e) NA_real_)
+      score <- .tune_score(
+        Z_train, Z_valid,
+        if (identical(scoring, "accuracy")) y[train_idx] else NULL,
+        if (identical(scoring, "accuracy")) y[valid_idx] else NULL,
+        scoring, score_fn
+      )
 
       if (is.numeric(score) && length(score) == 1L && is.finite(score)) {
         fold_scores[[i]] <- as.numeric(score)
@@ -469,6 +646,10 @@ auto_tune_whitening <- function(X,
       sd_score = if (sum(valid) > 1L) stats::sd(fold_scores[valid]) else NA_real_,
       n_success = n_success
     )
+  }
+
+  eval_candidate <- function(cfg) {
+    if (candidate_fast_ok(cfg)) eval_fast(cfg) else eval_slow(cfg)
   }
 
   evals <- lapply(candidates, eval_candidate)
@@ -512,6 +693,7 @@ auto_tune_whitening <- function(X,
     var_threshold = best_cfg$var_threshold,
     lambda = best_cfg$lambda,
     lambda_method = lambda_method,
+    shrink_target = shrink_target,
     sample_weight = sample_weight,
     cov_estimator = best_cfg$cov_estimator,
     tyler_tol = tyler_tol,
@@ -612,6 +794,7 @@ report_whitening <- function(model,
     sprintf("- lambda: %s", fmt(model$lambda)),
     sprintf("- lambda_input: %s", fmt(model$lambda_input)),
     sprintf("- lambda_method: %s", fmt(model$lambda_method)),
+    sprintf("- shrink_target: %s", fmt(if (!is.null(model$shrink_target)) model$shrink_target else "identity")),
     sprintf("- cov_estimator: %s", fmt(model$cov_estimator)),
     sprintf("- sample_weighted: %s", fmt(model$sample_weighted)),
     sprintf("- eig_method: %s", fmt(model$eig_method)),

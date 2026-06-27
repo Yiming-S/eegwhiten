@@ -12,7 +12,8 @@ PCA(
   PhiPsi = TRUE,
   return_decomp = FALSE,
   eig_method = c("auto", "base", "rspectra"),
-  fast = FALSE
+  fast = FALSE,
+  precomp = NULL
 )
 }
 \arguments{
@@ -35,6 +36,11 @@ fast inverse transformation.}
 
 \item{fast}{Logical; if \code{TRUE}, allow faster approximate settings
 for iterative eigensolvers.}
+
+\item{precomp}{Optional precomputed eigendecomposition of \code{Sigma}
+(a list with \code{values} and \code{vectors}) used internally to avoid
+recomputing the decomposition. Reused only when it holds at least
+\code{n_comp} components.}
 }
 \description{
 Perform whitening based on the eigen-decomposition.

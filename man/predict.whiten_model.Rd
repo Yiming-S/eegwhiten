@@ -4,13 +4,19 @@
 \alias{predict.whiten_model}
 \title{Apply a whitening model to new EEG data}
 \usage{
-\method{predict}{whiten_model}(object, newdata, ...)
+\method{predict}{whiten_model}(object, newdata, recenter = FALSE, ...)
 }
 \arguments{
 \item{object}{A \code{whiten_model} object.}
 
 \item{newdata}{Numeric matrix with the same number of columns
 as the data used to fit the model.}
+
+\item{recenter}{Logical; if \code{TRUE}, center \code{newdata} by its own
+column means instead of the stored training mean. This is useful for
+cross-session / cross-subject transfer where the test data has shifted
+relative to the training distribution. Ignored when the model was fitted
+with \code{center = FALSE}.}
 
 \item{...}{Unused.}
 }

@@ -19,7 +19,9 @@ whiten_model(
   tyler_eps = 1e-06,
   eig_method = c("auto", "base", "rspectra"),
   fast = FALSE,
-  sign_reference = NULL
+  sign_reference = NULL,
+  shrink_target = c("identity", "diagonal"),
+  na_action = c("error", "omit")
 )
 }
 \arguments{
@@ -42,7 +44,7 @@ methods.}
 \item{lambda}{Numeric (0 to 1) or \code{"auto"}; regularization parameter
 for covariance shrinkage.
 0 = No regularization (Empirical covariance).
-1 = Full shrinkage to target (scaled Identity).
+1 = Full shrinkage to target.
 Values between 0 and 1 mix the two. Useful for high-dimensional/low-sample EEG data.}
 
 \item{lambda_method}{Method used when \code{lambda = "auto"}.
@@ -68,6 +70,16 @@ for iterative eigensolvers.}
 
 \item{sign_reference}{Optional reference vectors used for stable component
 sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
+
+\item{shrink_target}{Covariance shrinkage target; one of \code{"identity"}
+(shrink toward a scaled identity \code{(tr(S)/d) I}, the default) or
+\code{"diagonal"} (shrink correlations toward zero while preserving the
+per-channel variances \code{diag(S)}). \code{lambda = "auto"} requires
+\code{"identity"}.}
+
+\item{na_action}{How to handle non-finite values in \code{X}; one of
+\code{"error"} (default) or \code{"omit"} (drop offending rows/trials with
+a warning).}
 }
 \value{
 An object of class \code{"whiten_model"}.

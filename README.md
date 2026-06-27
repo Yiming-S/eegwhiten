@@ -12,13 +12,17 @@ Whitening transforms for EEG and multichannel signals using a model-based API.
 
 - Multiple whitening methods: `PCA`, `PCA-cor`, `ZCA`, `ZCA-cor`, `SVD`, `Cholesky`
 - Shrinkage regularization with manual `lambda` or `lambda = "auto"` (`oas`/`lw`)
+- Shrinkage targets: scaled identity or `diagonal` (preserves channel variances)
 - Dimensionality reduction via `n_comp` or `var_threshold`
-- Weighted fitting with `sample_weight`
+- Weighted fitting with `sample_weight`; non-finite handling via `na_action`
 - Robust covariance estimation: `empirical`, `tyler`, `mcd` (requires `robustbase`)
-- Incremental model updates: `whiten_model_update()`
-- Batch modes: independent, shared model, and EA alignment
-- EA model API: `predict.ea_model()` and `inverse_ea()`
-- Automatic hyperparameter tuning: `auto_tune_whitening()`
+- Incremental updates with optional exponential forgetting: `whiten_model_update(..., decay)`
+- Batch modes: independent, shared model, EA alignment, and per-domain `recenter`
+- Cross-session helpers: `recenter()`, and `predict(..., recenter = TRUE)`
+- Riemannian pipeline: `epoch_covariances()`, `tangent_space()`, `untangent_space()`
+- Relative / generalized-eigenvalue whitening (CSP/xDAWN-style): `whiten_relative()`
+- Spatial filters and forward patterns: `whitening_patterns()`
+- Automatic hyperparameter tuning with an analytic fast path: `auto_tune_whitening()`
 - One-click markdown report: `report_whitening()`
 
 ## Installation
@@ -158,6 +162,68 @@ out_ea <- whiten_batch(X_list, mode = "ea", ea_mean = "logeuclid")
 ea <- euclidean_alignment(X_list, input = "raw", mean_method = "logeuclid")
 Z1 <- predict(ea$model, X_list[[1]])
 X1_back <- inverse_ea(Z1, ea$model)
+```
+
+### Cross-session recentering (per-domain alignment)
+
+`recenter()` aligns each session/subject by its *own* covariance, mapping every
+domain to the identity. Unlike `euclidean_alignment()` (a single shared
+transform from the grand-mean covariance), this removes between-session shift
+the way Euclidean Alignment (He & Wu, 2019) is meant to.
+
+```r
+X_list <- list(
+  matrix(rnorm(200 * 16), 200, 16),
+  matrix(rnorm(180 * 16), 180, 16)
+)
+
+# Each domain whitened to identity, independently
+out <- whiten_batch(X_list, mode = "recenter")
+
+# Single matrix
+rc <- recenter(X_list[[1]])
+
+# At predict time, center test data on its own mean (drift-robust)
+m <- whiten_model(X_list[[1]], method = "ZCA", lambda = 0.1)
+Z_test <- predict(m, X_list[[2]], recenter = TRUE)
+```
+
+### Riemannian tangent space
+
+Project per-trial SPD covariances to the tangent space at a reference mean and
+vectorize them for a downstream linear classifier — the standard Riemannian BCI
+pipeline.
+
+```r
+X_tensor <- array(rnorm(40 * 8 * 128), dim = c(40, 8, 128))
+covs <- epoch_covariances(X_tensor, shrinkage = 0.05)
+V <- tangent_space(covs, mean_method = "riemann")  # [40 x p(p+1)/2]
+covs_rec <- untangent_space(V)                     # inverse map
+```
+
+### Relative / generalized-eigenvalue whitening
+
+Whiten one covariance by another (e.g. signal vs. noise), the basis of CSP and
+xDAWN.
+
+```r
+X <- matrix(rnorm(200 * 8), 200, 8)
+Sigma_signal <- cov(X)
+Sigma_noise  <- cov(matrix(rnorm(200 * 8), 200, 8))
+
+res <- whiten_relative(Sigma_signal, reference = Sigma_noise, n_comp = 6)
+Z <- X %*% t(res$W)   # res$values are the per-component variance ratios
+```
+
+### Online updates with forgetting
+
+```r
+X_stream_1 <- matrix(rnorm(200 * 16), 200, 16)
+X_stream_2 <- matrix(rnorm(200 * 16), 200, 16)
+
+m <- whiten_model(X_stream_1, method = "ZCA", lambda = 0.05)
+# decay < 1 down-weights past data to track non-stationary drift
+m <- whiten_model_update(m, X_stream_2, decay = 0.9)
 ```
 
 ## Tensor Data (trial × channel × time)

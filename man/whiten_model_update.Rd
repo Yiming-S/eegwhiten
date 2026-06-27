@@ -4,7 +4,7 @@
 \alias{whiten_model_update}
 \title{Incrementally Update a Whitening Model}
 \usage{
-whiten_model_update(model, X_new, sample_weight = NULL)
+whiten_model_update(model, X_new, sample_weight = NULL, decay = 1)
 }
 \arguments{
 \item{model}{A \code{whiten_model} object.}
@@ -14,6 +14,12 @@ whiten_model_update(model, X_new, sample_weight = NULL)
 
 \item{sample_weight}{Optional non-negative sample weights for
 \code{X_new}.}
+
+\item{decay}{Forgetting factor in \code{(0, 1]} applied to the stored
+moments before adding the new batch. \code{decay = 1} (default) gives the
+standard cumulative update that weights all observations equally;
+\code{decay < 1} exponentially down-weights past data, which lets the model
+track non-stationary drift in streaming / online settings.}
 }
 \value{
 Updated \code{whiten_model} object.
@@ -31,6 +37,9 @@ m <- whiten_model(X1, method = "ZCA", lambda = 0.1)
 X2 <- matrix(rnorm(100 * 8), 100, 8)
 m_updated <- whiten_model_update(m, X2)
 m_updated$n_obs
+
+# Online tracking with exponential forgetting
+m_drift <- whiten_model_update(m, X2, decay = 0.9)
 
 }
 \seealso{

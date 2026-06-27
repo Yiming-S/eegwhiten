@@ -22,6 +22,10 @@
 #'   strength.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param shrink_target Covariance shrinkage target; one of \code{"identity"}
+#'   or \code{"diagonal"}. See \code{\link{whiten_model}}.
+#' @param na_action How to handle non-finite values in \code{X}; one of
+#'   \code{"error"} or \code{"omit"}.
 #' @param sample_weight Optional non-negative sample weights with
 #'   length \code{nrow(X)}.
 #' @param cov_estimator Covariance estimator; one of \code{"empirical"},
@@ -73,13 +77,32 @@ whiten_matrix <- function(X, center = TRUE,
                           tyler_eps = 1e-6,
                           eig_method = c("auto", "base", "rspectra"),
                           fast = FALSE,
-                          sign_reference = NULL) {
+                          sign_reference = NULL,
+                          shrink_target = c("identity", "diagonal"),
+                          na_action = c("error", "omit")) {
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  shrink_target <- match.arg(shrink_target)
+  na_action <- match.arg(na_action)
   cov_estimator <- match.arg(cov_estimator)
   eig_method <- match.arg(eig_method)
-  
+
+  # na_action handling: fit and transform must use the same rows. Drop
+  # non-finite rows up front so predict() below sees finite data.
+  if (na_action == "omit" && any(!is.finite(X))) {
+    keep <- rowSums(!is.finite(X)) == 0
+    n_drop <- sum(!keep)
+    if (!is.null(sample_weight) && is.numeric(sample_weight) &&
+        length(sample_weight) == nrow(X)) {
+      sample_weight <- sample_weight[keep]
+    }
+    X <- X[keep, , drop = FALSE]
+    if (n_drop > 0L) {
+      warning(sprintf("Dropped %d row(s) of X containing non-finite values.", n_drop))
+    }
+  }
+
   model <- whiten_model(
     X,
     center = center,
@@ -88,6 +111,8 @@ whiten_matrix <- function(X, center = TRUE,
     var_threshold = var_threshold,
     lambda = lambda,
     lambda_method = lambda_method,
+    shrink_target = shrink_target,
+    na_action = na_action,
     sample_weight = sample_weight,
     cov_estimator = cov_estimator,
     tyler_tol = tyler_tol,
@@ -133,6 +158,12 @@ whiten_matrix <- function(X, center = TRUE,
 #'   strength.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param shrink_target Covariance shrinkage target; one of \code{"identity"}
+#'   or \code{"diagonal"}. See \code{\link{whiten_model}}.
+#' @param na_action How to handle non-finite values; one of \code{"error"} or
+#'   \code{"omit"} (drop offending rows). Applied for the
+#'   \code{"independent"}, \code{"shared_model"}, and \code{"recenter"} modes;
+#'   for \code{mode = "ea"} pre-clean the inputs instead.
 #' @param sample_weight Optional sample weights.
 #'   For a single matrix, provide one numeric vector.
 #'   For multiple matrices in \code{mode = "independent"}, provide a list
@@ -153,8 +184,11 @@ whiten_matrix <- function(X, center = TRUE,
 #'   each matrix is whitened independently.
 #' @param mode Batch whitening strategy:
 #'   \code{"independent"} (fit each matrix separately),
-#'   \code{"shared_model"} (fit once on first matrix), or
-#'   \code{"ea"} (Euclidean Alignment with global reference covariance).
+#'   \code{"shared_model"} (fit once on first matrix),
+#'   \code{"ea"} (Euclidean Alignment with a single global reference covariance),
+#'   or \code{"recenter"} (per-domain recentering: align each matrix by its own
+#'   covariance so every domain is whitened to the identity; see
+#'   \code{\link{recenter}}).
 #' @param ea_mean Mean type used in \code{"ea"} mode; one of
 #'   \code{"riemann"}, \code{"logeuclid"}, or \code{"euclid"}.
 #' @param ea_input Input interpretation in \code{"ea"} mode; one of
@@ -198,16 +232,20 @@ whiten_batch <- function(X_list, center = TRUE,
                          fast = FALSE,
                          sign_reference = NULL,
                          shared_model = FALSE,
-                         mode = c("independent", "shared_model", "ea"),
+                         mode = c("independent", "shared_model", "ea", "recenter"),
                          ea_mean = c("logeuclid", "riemann", "euclid"),
                          ea_input = c("auto", "raw", "cov"),
                          ea_tol = 1e-6,
                          ea_max_iter = 50,
                          parallel = FALSE,
-                         n_cores = 1L) {
+                         n_cores = 1L,
+                         shrink_target = c("identity", "diagonal"),
+                         na_action = c("error", "omit")) {
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  shrink_target <- match.arg(shrink_target)
+  na_action <- match.arg(na_action)
   cov_estimator <- match.arg(cov_estimator)
   eig_method <- match.arg(eig_method)
   mode <- match.arg(mode)
@@ -273,6 +311,31 @@ whiten_batch <- function(X_list, center = TRUE,
   }
   weight_list <- resolve_weights(sample_weight, X_list, mode)
   
+  if (mode == "recenter") {
+    if (any(vapply(weight_list, Negate(is.null), logical(1)))) {
+      warning("sample_weight is ignored when mode = 'recenter'.")
+    }
+    lam <- if (is.character(lambda)) 0 else lambda
+    out <- apply_list(X_list, function(X) {
+      X <- .drop_nonfinite_rows(X, na_action = na_action, what = "X")
+      rc <- recenter(X, reference = NULL, center = center, lambda = lam)
+      list(
+        Z = rc$Z,
+        W = rc$W,
+        center = rc$center,
+        method = "recenter",
+        n_comp = NULL,
+        var_threshold = NULL,
+        explained_var = NA_real_,
+        lambda = lam,
+        lambda_method = NA_character_,
+        model = NULL
+      )
+    })
+    attr(out, "alignment") <- "recenter"
+    return(out)
+  }
+
   if (mode == "ea") {
     if (any(vapply(weight_list, Negate(is.null), logical(1)))) {
       warning("sample_weight is ignored when mode = 'ea'.")
@@ -308,15 +371,36 @@ whiten_batch <- function(X_list, center = TRUE,
   }
   
   if (mode == "shared_model") {
+    # Clean each matrix once (na_action = "omit") so the fit and the transform
+    # use the same surviving rows and the first matrix is not warned twice.
+    fit_w <- weight_list[[1L]]
+    X_clean <- X_list
+    if (na_action == "omit") {
+      for (i in seq_along(X_list)) {
+        Xi <- X_list[[i]]
+        if (any(!is.finite(Xi))) {
+          keep <- rowSums(!is.finite(Xi)) == 0
+          nd <- sum(!keep)
+          if (i == 1L && !is.null(fit_w)) fit_w <- fit_w[keep]
+          X_clean[[i]] <- Xi[keep, , drop = FALSE]
+          if (nd > 0L) {
+            warning(sprintf("Dropped %d row(s) of X containing non-finite values.", nd))
+          }
+        }
+      }
+    }
+
     model <- whiten_model(
-      X_list[[1]],
+      X_clean[[1]],
       center = center,
       method = method,
       n_comp = n_comp,
       var_threshold = var_threshold,
       lambda = lambda,
       lambda_method = lambda_method,
-      sample_weight = weight_list[[1L]],
+      shrink_target = shrink_target,
+      na_action = na_action,
+      sample_weight = fit_w,
       cov_estimator = cov_estimator,
       tyler_tol = tyler_tol,
       tyler_max_iter = tyler_max_iter,
@@ -325,8 +409,8 @@ whiten_batch <- function(X_list, center = TRUE,
       fast = fast,
       sign_reference = sign_reference
     )
-    
-    out <- apply_list(X_list, function(X) {
+
+    out <- apply_list(X_clean, function(X) {
       Z <- stats::predict(model, X)
       list(
         Z      = Z,
@@ -358,6 +442,8 @@ whiten_batch <- function(X_list, center = TRUE,
         var_threshold = var_threshold,
         lambda = lambda,
         lambda_method = lambda_method,
+        shrink_target = shrink_target,
+        na_action = na_action,
         sample_weight = weight_list[[i]],
         cov_estimator = cov_estimator,
         tyler_tol = tyler_tol,

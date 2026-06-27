@@ -91,11 +91,15 @@
   .normalize_whiten_method(method) %in% c("PCA", "PCA-cor", "SVD")
 }
 
-# Unified SPD eigendecomposition helper with optional top-k solver
+# Unified SPD eigendecomposition helper with optional top-k solver.
+# precomp may carry a previously computed full decomposition (values, vectors)
+# of the same matrix; when it holds at least k components it is reused directly,
+# which avoids recomputing the eigendecomposition inside whitening methods.
 .eigen_spd <- function(Sigma,
                        k = NULL,
                        method = c("auto", "base", "rspectra"),
-                       fast = FALSE) {
+                       fast = FALSE,
+                       precomp = NULL) {
   method <- match.arg(method)
   if (!is.matrix(Sigma) || !is.numeric(Sigma)) {
     stop("Sigma must be a numeric matrix.")
@@ -111,6 +115,16 @@
       stop("k must be an integer between 1 and ncol(Sigma).")
     }
     k <- as.integer(k)
+  }
+
+  if (!is.null(precomp) && !is.null(precomp$values) && !is.null(precomp$vectors) &&
+      length(precomp$values) >= k && ncol(precomp$vectors) >= k &&
+      nrow(precomp$vectors) == d) {
+    return(list(
+      values = precomp$values[seq_len(k)],
+      vectors = precomp$vectors[, seq_len(k), drop = FALSE],
+      engine = if (!is.null(precomp$engine)) precomp$engine else "precomp"
+    ))
   }
 
   rs_available <- requireNamespace("RSpectra", quietly = TRUE)
@@ -506,6 +520,124 @@
     s[j] <- if (anchor >= 0) 1 else -1
   }
   sweep(U, 2, s, "*")
+}
+
+# Apply covariance shrinkage toward a target.
+#   "identity": (1 - lambda) * S + lambda * (tr(S)/d) * I   (default)
+#   "diagonal": (1 - lambda) * S + lambda * diag(diag(S))   (preserves variances,
+#               shrinks correlations toward zero)
+# The identity target preserves the eigenvectors of S (only the eigenvalues are
+# shifted affinely), which the analytic shrinkage path in tuning relies on.
+.shrink_cov <- function(S, lambda, target = c("identity", "diagonal")) {
+  target <- match.arg(target)
+  if (lambda <= 0) return(S)
+  d <- ncol(S)
+  if (target == "identity") {
+    target_val <- mean(diag(S))
+    S_t <- (1 - lambda) * S + lambda * diag(target_val, d)
+  } else {
+    S_t <- (1 - lambda) * S
+    diag(S_t) <- diag(S)
+  }
+  .symmetrize(S_t)
+}
+
+# Shrunk eigenvalues for the identity target, derived analytically from the
+# unshrunk eigenvalues. Adding lambda * c * I (c = mean eigenvalue = tr(S)/d)
+# leaves the eigenvectors unchanged and maps each eigenvalue d_i to
+# (1 - lambda) * d_i + lambda * c. Used by the fast tuning path.
+.shrink_eigvals_identity <- function(d_vals, lambda) {
+  if (lambda <= 0) return(d_vals)
+  cc <- mean(d_vals)
+  (1 - lambda) * d_vals + lambda * cc
+}
+
+# Build whitening outputs for covariance-based methods (PCA, SVD, ZCA) directly
+# from an eigendecomposition S = U diag(d_vals) U^T of the (already shrunk)
+# covariance. Returns W, its inverse map inv_tW, and the retained U / D.
+# This mirrors the math in PCA()/SVD()/ZCA() and is shared by the fast tuning path.
+.whiten_from_cov_eig <- function(method, U, d_vals, n_comp = NULL,
+                                 sign_ref = NULL, col_names = NULL) {
+  method <- .normalize_whiten_method(method)
+  if (!method %in% c("PCA", "SVD", "ZCA")) {
+    stop("'.whiten_from_cov_eig' supports only PCA, SVD, and ZCA.")
+  }
+  d <- nrow(U)
+
+  if (method == "ZCA") {
+    inv_sqrt <- 1 / sqrt(d_vals)
+    W <- tcrossprod(sweep(U, 2L, inv_sqrt, "*"), U)
+    inv_tW <- tcrossprod(sweep(U, 2L, sqrt(d_vals), "*"), U)
+    row_names <- paste0("L", seq_len(d))
+    U_out <- U
+    D_out <- d_vals
+  } else {
+    k <- if (is.null(n_comp)) length(d_vals) else as.integer(n_comp)
+    Uk <- U[, seq_len(k), drop = FALSE]
+    dk <- d_vals[seq_len(k)]
+    Uk <- .fix_component_sign(Uk, sign_ref = sign_ref)
+    W <- sweep(t(Uk), 1L, 1 / sqrt(dk), "*")
+    inv_tW <- sweep(t(Uk), 1L, sqrt(dk), "*")
+    row_names <- paste0(if (method == "SVD") "SV" else "PC", seq_len(k))
+    U_out <- Uk
+    D_out <- dk
+  }
+
+  W <- .set_matrix_attr(W, row_names = row_names, col_names = col_names, method = method)
+  list(W = W, inv_tW = inv_tW, U = U_out, D = D_out)
+}
+
+# Subtract a per-column vector from every row without sweep() overhead.
+# rep(mu, each = n) lays mu out in column-major order to match X.
+.center_cols <- function(X, mu) {
+  n <- nrow(X)
+  X - rep(mu, each = n)
+}
+
+# Drop rows containing any non-finite value; report how many were removed.
+.drop_nonfinite_rows <- function(X, na_action = c("error", "omit"),
+                                 what = "X") {
+  na_action <- match.arg(na_action)
+  bad <- !is.finite(X)
+  if (!any(bad)) return(X)
+  if (na_action == "error") {
+    stop(sprintf("%s must contain only finite values.", what))
+  }
+  keep <- rowSums(bad) == 0
+  n_drop <- sum(!keep)
+  if (n_drop > 0L) {
+    warning(sprintf("Dropped %d row(s) of %s containing non-finite values.", n_drop, what))
+  }
+  X[keep, , drop = FALSE]
+}
+
+# Indices of the upper triangle (including diagonal) in column-major order.
+.upper_tri_index <- function(p) {
+  which(upper.tri(matrix(0, p, p), diag = TRUE))
+}
+
+# Vectorize a symmetric tangent matrix L into a vector of length p(p+1)/2.
+# Off-diagonal entries are scaled by sqrt(2) so that the Euclidean norm of the
+# vector equals the Frobenius norm of L (isometry of the tangent inner product).
+.spd_tangent_vec <- function(L) {
+  p <- ncol(L)
+  w <- L
+  off <- sqrt(2)
+  w[upper.tri(w)] <- w[upper.tri(w)] * off
+  w[.upper_tri_index(p)]
+}
+
+# Inverse of .spd_tangent_vec: rebuild the symmetric matrix from its vector.
+.spd_tangent_unvec <- function(v, p) {
+  L <- matrix(0, p, p)
+  idx <- .upper_tri_index(p)
+  L[idx] <- v
+  off <- sqrt(2)
+  ut <- upper.tri(L)
+  L[ut] <- L[ut] / off
+  L <- L + t(L)
+  diag(L) <- diag(L) / 2
+  L
 }
 
 # Basic check: Sigma must be symmetric; optionally positive-definite

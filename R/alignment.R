@@ -148,6 +148,96 @@ euclidean_alignment <- function(X_list,
   )
 }
 
+#' Recenter a single EEG matrix to the identity
+#'
+#' Whitens one data matrix by the inverse square root of its own covariance
+#' (or a supplied reference covariance), mapping that covariance to the
+#' identity. Applied independently to each session/subject, this is the
+#' per-domain recentering at the heart of Euclidean Alignment (He and Wu,
+#' 2019) and Riemannian recentering (Zanini et al., 2018): every domain's mean
+#' covariance is moved to a common point, which removes the bulk of
+#' between-session / between-subject covariance shift before classification.
+#'
+#' Unlike \code{\link{euclidean_alignment}}, which applies a single shared
+#' transform built from the grand-mean covariance, \code{recenter} aligns each
+#' matrix by its own covariance, so each domain is individually whitened to the
+#' identity.
+#'
+#' @param X Numeric matrix \code{[n_samples x n_channels]}.
+#' @param reference Optional reference covariance \code{[p x p]}. If
+#'   \code{NULL} (default), the covariance of \code{X} itself is used, mapping
+#'   \code{X} to the identity.
+#' @param center Logical; whether to subtract the column means before computing
+#'   the covariance and before whitening.
+#' @param lambda Numeric in \code{[0, 1]}; optional shrinkage of the covariance
+#'   toward a scaled identity for stability with short epochs.
+#' @param eps Numeric stability floor for eigenvalues.
+#'
+#' @return A list with:
+#'   \item{Z}{Recentered data matrix.}
+#'   \item{W}{Alignment matrix \code{reference^{-1/2}}.}
+#'   \item{reference_cov}{Covariance that was mapped to the identity.}
+#'   \item{center}{Column means subtracted (zeros if \code{center = FALSE}).}
+#'
+#' @references
+#' He, H., and Wu, D. (2019). Transfer learning for brain-computer interfaces:
+#' A Euclidean space data alignment approach. IEEE Transactions on Biomedical
+#' Engineering.
+#'
+#' @seealso \code{\link{euclidean_alignment}}, \code{\link{whiten_batch}} with
+#'   \code{mode = "recenter"}.
+#'
+#' @examples
+#' set.seed(1)
+#' X <- matrix(rnorm(200 * 6), 200, 6)
+#' rc <- recenter(X)
+#' diag(round(cov(rc$Z), 6))
+#'
+#' @export
+recenter <- function(X, reference = NULL, center = TRUE, lambda = 0, eps = 1e-10) {
+  if (!is.matrix(X) || !is.numeric(X) || any(!is.finite(X))) {
+    stop("X must be a finite numeric matrix.")
+  }
+  if (!is.logical(center) || length(center) != 1L || is.na(center)) {
+    stop("center must be TRUE or FALSE.")
+  }
+  .check_unit_interval(lambda, "lambda")
+
+  p <- ncol(X)
+  mu <- if (center) colMeans(X) else rep(0, p)
+  Xc <- if (center) .center_cols(X, mu) else X
+
+  if (is.null(reference)) {
+    if (nrow(X) < 2L) {
+      stop("X must have at least 2 rows to estimate a covariance, or pass an explicit reference.")
+    }
+    C <- .symmetrize(stats::cov(Xc))
+    if (lambda > 0) C <- .shrink_cov(C, lambda, target = "identity")
+  } else {
+    if (!is.matrix(reference) || !is.numeric(reference) ||
+        nrow(reference) != p || ncol(reference) != p) {
+      stop(sprintf("reference must be a %d x %d numeric matrix.", p, p))
+    }
+    .check_symmetric_pd(reference, require_pd = TRUE, return_eigen = FALSE)
+    C <- .symmetrize(reference)
+    if (lambda > 0) C <- .shrink_cov(C, lambda, target = "identity")
+  }
+
+  # Guard against rank-deficient covariance (e.g. short epochs): a silent
+  # eigenvalue floor would return non-whitened data, breaking the contract.
+  ed <- eigen(C, symmetric = TRUE)
+  if (min(ed$values) <= eps) {
+    stop(sprintf(
+      "recenter(): covariance is not positive-definite (min eigenvalue = %g). Increase lambda for short or rank-deficient epochs.",
+      min(ed$values)))
+  }
+  W <- ed$vectors %*% (t(ed$vectors) * (1 / sqrt(ed$values)))
+  Z <- Xc %*% W
+  if (!is.null(colnames(X))) colnames(Z) <- colnames(X)
+
+  list(Z = Z, W = W, reference_cov = C, center = mu)
+}
+
 #' Apply an EA Model to New Data
 #'
 #' @param object An \code{ea_model} object returned by

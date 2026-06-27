@@ -42,6 +42,7 @@ print.whiten_model <- function(x, ...) {
   cat("  var_threshold:", show_val(x$var_threshold), "\n")
   cat("  explained_var:", show_val(x$explained_var, digits = 4), "\n")
   cat("  lambda      :", show_val(x$lambda, digits = 4), "\n")
+  cat("  shrink_target:", show_val(if (!is.null(x$shrink_target)) x$shrink_target else "identity"), "\n")
   cat("  eig_method  :", show_val(eig_method), "\n")
   cat("  fast_mode   :", show_val(fast_mode), "\n")
   cat("  cov_estimator:", show_val(cov_estimator), "\n")
@@ -97,6 +98,7 @@ summary.whiten_model <- function(object, data = NULL, Z = NULL, ...) {
     lambda = object$lambda,
     lambda_input = if (!is.null(object$lambda_input)) object$lambda_input else as.character(object$lambda),
     lambda_method = if (!is.null(object$lambda_method)) object$lambda_method else NA_character_,
+    shrink_target = if (!is.null(object$shrink_target)) object$shrink_target else "identity",
     eig_method = if (!is.null(object$eig_method)) object$eig_method else NA_character_,
     fast = if (!is.null(object$fast)) object$fast else NA,
     cov_estimator = if (!is.null(object$cov_estimator)) object$cov_estimator else NA_character_,
@@ -133,6 +135,7 @@ print.summary.whiten_model <- function(x, ...) {
   cat("  var_threshold:", show_val(x$var_threshold), "\n")
   cat("  explained_var:", show_val(x$explained_var, digits = 4), "\n")
   cat("  lambda      :", show_val(x$lambda, digits = 4), "\n")
+  cat("  shrink_target:", show_val(if (!is.null(x$shrink_target)) x$shrink_target else "identity"), "\n")
   cat("  eig_method  :", show_val(x$eig_method), "\n")
   cat("  fast_mode   :", show_val(x$fast), "\n")
   cat("  cov_estimator:", show_val(x$cov_estimator), "\n")

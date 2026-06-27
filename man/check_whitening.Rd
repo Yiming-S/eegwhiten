@@ -14,6 +14,11 @@ A list with elements:
   \item{diag_range}{Range (min, max) of diagonal entries of \code{cov(Z)}.}
   \item{diag_mean}{Mean diagonal value.}
   \item{offdiag_frob}{Frobenius norm of off-diagonal entries.}
+  \item{cov_dev_frob}{Frobenius norm of \code{cov(Z) - I} (total deviation
+    from identity, including the diagonal).}
+  \item{logdet}{Log-determinant of \code{cov(Z)} (0 for perfectly white data).}
+  \item{whiteness}{Bounded score in \code{[0, 1]}, equal to 1 when
+    \code{cov(Z) = I} and decreasing as the data departs from white.}
   \item{dim}{Number of components.}
   \item{cov_matrix}{The sample covariance of \code{Z}.}
 }

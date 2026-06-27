@@ -21,13 +21,15 @@ whiten_batch(
   fast = FALSE,
   sign_reference = NULL,
   shared_model = FALSE,
-  mode = c("independent", "shared_model", "ea"),
+  mode = c("independent", "shared_model", "ea", "recenter"),
   ea_mean = c("logeuclid", "riemann", "euclid"),
   ea_input = c("auto", "raw", "cov"),
   ea_tol = 1e-06,
   ea_max_iter = 50,
   parallel = FALSE,
-  n_cores = 1L
+  n_cores = 1L,
+  shrink_target = c("identity", "diagonal"),
+  na_action = c("error", "omit")
 )
 }
 \arguments{
@@ -80,8 +82,11 @@ each matrix is whitened independently.}
 
 \item{mode}{Batch whitening strategy:
 \code{"independent"} (fit each matrix separately),
-\code{"shared_model"} (fit once on first matrix), or
-\code{"ea"} (Euclidean Alignment with global reference covariance).}
+\code{"shared_model"} (fit once on first matrix),
+\code{"ea"} (Euclidean Alignment with a single global reference covariance),
+or \code{"recenter"} (per-domain recentering: align each matrix by its own
+covariance so every domain is whitened to the identity; see
+\code{\link{recenter}}).}
 
 \item{ea_mean}{Mean type used in \code{"ea"} mode; one of
 \code{"riemann"}, \code{"logeuclid"}, or \code{"euclid"}.}
@@ -98,6 +103,14 @@ per-matrix operations on Unix-like systems.}
 
 \item{n_cores}{Integer; number of worker processes when
 \code{parallel = TRUE}.}
+
+\item{shrink_target}{Covariance shrinkage target; one of \code{"identity"}
+or \code{"diagonal"}. See \code{\link{whiten_model}}.}
+
+\item{na_action}{How to handle non-finite values; one of \code{"error"} or
+\code{"omit"} (drop offending rows). Applied for the
+\code{"independent"}, \code{"shared_model"}, and \code{"recenter"} modes;
+for \code{mode = "ea"} pre-clean the inputs instead.}
 }
 \value{
 A list of results as returned by \code{whiten_matrix()}.

@@ -12,6 +12,7 @@ auto_tune_whitening(
   var_threshold_grid = NULL,
   lambda_grid = list("auto", 0, 0.05, 0.1),
   lambda_method = c("oas", "lw"),
+  shrink_target = c("identity", "diagonal"),
   cov_estimator_grid = "empirical",
   sample_weight = NULL,
   cv_folds = 5L,
@@ -24,7 +25,8 @@ auto_tune_whitening(
   eig_method = c("auto", "base", "rspectra"),
   fast = FALSE,
   sign_reference = NULL,
-  top_n = 5L
+  top_n = 5L,
+  fast_tune = TRUE
 )
 }
 \arguments{
@@ -43,6 +45,9 @@ auto_tune_whitening(
 in \code{[0, 1]} and \code{"auto"}.}
 
 \item{lambda_method}{Method used when \code{lambda = "auto"}.}
+
+\item{shrink_target}{Covariance shrinkage target passed to
+\code{\link{whiten_model}}; one of \code{"identity"} or \code{"diagonal"}.}
 
 \item{cov_estimator_grid}{Candidate covariance estimators.}
 
@@ -72,6 +77,19 @@ called as \code{score_fn(Z_valid)}. For supervised tuning, called as
 \item{sign_reference}{Optional reference vectors for sign stabilization.}
 
 \item{top_n}{Number of top configurations retained in the summary table.}
+
+\item{fast_tune}{Logical; if \code{TRUE} (default), use an analytic shrinkage
+path for covariance-based methods (\code{"PCA"}, \code{"SVD"}, \code{"ZCA"})
+with \code{shrink_target = "identity"}, no \code{sample_weight}, and no
+\code{sign_reference}. Each fold's covariance is eigendecomposed once (with
+an exact base solver, so \code{eig_method} and \code{fast} are not used for
+these candidates) and reused across the entire
+\code{lambda}/\code{n_comp}/\code{var_threshold} grid, which can be
+dramatically faster. Set to \code{FALSE} to force a full model refit per
+candidate. Results are equivalent up to floating point; candidates whose
+resolved \code{lambda} reaches 1 (an isotropic, degenerate target) are
+automatically routed through the full refit so scoring and the returned
+model stay consistent.}
 }
 \value{
 A list of class \code{whiten_tune} containing the best model,

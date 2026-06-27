@@ -19,7 +19,9 @@ whiten_matrix(
   tyler_eps = 1e-06,
   eig_method = c("auto", "base", "rspectra"),
   fast = FALSE,
-  sign_reference = NULL
+  sign_reference = NULL,
+  shrink_target = c("identity", "diagonal"),
+  na_action = c("error", "omit")
 )
 }
 \arguments{
@@ -63,6 +65,12 @@ for iterative eigensolvers.}
 
 \item{sign_reference}{Optional reference vectors used for stable component
 sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
+
+\item{shrink_target}{Covariance shrinkage target; one of \code{"identity"}
+or \code{"diagonal"}. See \code{\link{whiten_model}}.}
+
+\item{na_action}{How to handle non-finite values in \code{X}; one of
+\code{"error"} or \code{"omit"}.}
 }
 \value{
 A list with components:

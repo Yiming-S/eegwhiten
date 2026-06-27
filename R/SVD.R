@@ -22,6 +22,10 @@
 #'   \code{"base"}, or \code{"rspectra"}.
 #' @param fast Logical; if \code{TRUE}, allow faster approximate settings
 #'   for iterative eigensolvers.
+#' @param precomp Optional precomputed eigendecomposition of \code{Sigma}
+#'   (a list with \code{values} and \code{vectors}) used internally to avoid
+#'   recomputing the decomposition. Reused only when it holds at least
+#'   \code{n_comp} components.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix based on the SVD.}
@@ -43,7 +47,8 @@ SVD <- function(Sigma,
                 PhiPsi = TRUE,
                 return_decomp = FALSE,
                 eig_method = c("auto", "base", "rspectra"),
-                fast = FALSE) {
+                fast = FALSE,
+                precomp = NULL) {
   if (!isTRUE(attr(Sigma, ".checked_spd"))) {
     .check_symmetric_pd(Sigma, require_pd = TRUE)
   }
@@ -63,7 +68,7 @@ SVD <- function(Sigma,
   } else {
     k <- d_full
   }
-  dec <- .eigen_spd(Sigma, k = k, method = eig_method, fast = fast)
+  dec <- .eigen_spd(Sigma, k = k, method = eig_method, fast = fast, precomp = precomp)
   U <- dec$vectors
   D <- dec$values
   

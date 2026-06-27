@@ -157,10 +157,18 @@ whiten_fit <- function(Sigma,
 #' @param lambda Numeric (0 to 1) or \code{"auto"}; regularization parameter
 #'   for covariance shrinkage.
 #'   0 = No regularization (Empirical covariance).
-#'   1 = Full shrinkage to target (scaled Identity).
+#'   1 = Full shrinkage to target.
 #'   Values between 0 and 1 mix the two. Useful for high-dimensional/low-sample EEG data.
 #' @param lambda_method Method used when \code{lambda = "auto"}.
 #'   One of \code{"oas"} or \code{"lw"}.
+#' @param shrink_target Covariance shrinkage target; one of \code{"identity"}
+#'   (shrink toward a scaled identity \code{(tr(S)/d) I}, the default) or
+#'   \code{"diagonal"} (shrink correlations toward zero while preserving the
+#'   per-channel variances \code{diag(S)}). \code{lambda = "auto"} requires
+#'   \code{"identity"}.
+#' @param na_action How to handle non-finite values in \code{X}; one of
+#'   \code{"error"} (default) or \code{"omit"} (drop offending rows/trials with
+#'   a warning).
 #' @param sample_weight Optional non-negative sample weights with length
 #'   \code{nrow(X)}.
 #' @param cov_estimator Covariance estimator; one of \code{"empirical"},
@@ -208,10 +216,14 @@ whiten_model <- function(X, center = TRUE,
                          tyler_eps = 1e-6,
                          eig_method = c("auto", "base", "rspectra"),
                          fast = FALSE,
-                         sign_reference = NULL) {
+                         sign_reference = NULL,
+                         shrink_target = c("identity", "diagonal"),
+                         na_action = c("error", "omit")) {
   if (length(method) > 1L) method <- method[[1L]]
   method <- .normalize_whiten_method(method)
   lambda_method <- match.arg(lambda_method)
+  shrink_target <- match.arg(shrink_target)
+  na_action <- match.arg(na_action)
   cov_estimator <- match.arg(cov_estimator)
   eig_method <- match.arg(eig_method)
   if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {
@@ -222,7 +234,23 @@ whiten_model <- function(X, center = TRUE,
 
   if (!is.matrix(X)) stop("X must be a matrix.")
   if (!is.numeric(X)) stop("X must be a numeric matrix.")
-  if (any(!is.finite(X))) stop("X must contain only finite values.")
+  if (any(!is.finite(X))) {
+    if (na_action == "error") stop("X must contain only finite values.")
+    na_keep <- rowSums(!is.finite(X)) == 0
+    n_drop <- sum(!na_keep)
+    # Keep optional sample weights aligned with the surviving rows. Validate
+    # against the ORIGINAL row count so a mis-sized weight cannot slip through.
+    if (!is.null(sample_weight)) {
+      if (!is.numeric(sample_weight) || length(sample_weight) != nrow(X)) {
+        stop("sample_weight must be a finite numeric vector with length nrow(X).")
+      }
+      sample_weight <- sample_weight[na_keep]
+    }
+    X <- X[na_keep, , drop = FALSE]
+    if (n_drop > 0L) {
+      warning(sprintf("Dropped %d row(s) of X containing non-finite values.", n_drop))
+    }
+  }
   if (!is.logical(center) || length(center) != 1L || is.na(center)) {
     stop("center must be TRUE or FALSE.")
   }
@@ -245,6 +273,9 @@ whiten_model <- function(X, center = TRUE,
   }
   if (lambda_auto && cov_estimator != "empirical") {
     stop("lambda='auto' is only supported with cov_estimator='empirical'.")
+  }
+  if (lambda_auto && shrink_target != "identity") {
+    stop("lambda='auto' is only supported with shrink_target='identity'. Set a numeric lambda for the diagonal target.")
   }
 
   # Validation for n_comp
@@ -306,24 +337,33 @@ whiten_model <- function(X, center = TRUE,
   # 2. Optional shrinkage
   S <- cov_fit$cov
   if (lambda_auto) {
-    Xc <- if (center) sweep(X, 2, mu, "-") else X
+    Xc <- if (center) .center_cols(X, mu) else X
     lambda <- if (lambda_method == "oas") .lambda_oas(Xc) else .lambda_lw(Xc)
   }
 
-  # Apply shrinkage toward scaled identity
-  if (lambda > 0) {
-    target_val <- mean(diag(S))
-    target_mat <- diag(target_val, d)
-    S <- (1 - lambda) * S + lambda * target_mat
-  }
+  # Apply shrinkage toward the chosen target.
+  S <- .shrink_cov(S, lambda, target = shrink_target)
 
+  # Positive-definiteness, conditioning, and (for covariance-based methods that
+  # need the full spectrum) a single eigendecomposition reused by the method.
+  is_cov_based <- method %in% c("PCA", "SVD", "ZCA")
   need_full_eigs <- !is_reduction || !is.null(var_threshold) || is.null(n_comp) || identical(eig_method, "base")
-  eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE, return_eigen = need_full_eigs)
-  cond_raw <- if (need_full_eigs) {
-    max(eig_shrunk) / min(pmax(eig_shrunk, .Machine$double.eps))
+  precomp_eig <- NULL
+  if (need_full_eigs && is_cov_based) {
+    .check_symmetric_pd(S, require_pd = FALSE, return_eigen = FALSE)
+    precomp_eig <- .eigen_spd(S, k = d, method = eig_method, fast = fast)
+    eig_shrunk <- precomp_eig$values
+    if (any(eig_shrunk <= 1e-8)) {
+      stop(sprintf("Sample covariance must be positive-definite. Min eigenvalue = %g. Try lambda='auto' or lambda > 0.", min(eig_shrunk)))
+    }
+    cond_raw <- max(eig_shrunk) / min(pmax(eig_shrunk, .Machine$double.eps))
   } else {
-    inv_rcond <- tryCatch(1 / rcond(S), error = function(e) NA_real_)
-    inv_rcond
+    eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE, return_eigen = need_full_eigs)
+    cond_raw <- if (need_full_eigs) {
+      max(eig_shrunk) / min(pmax(eig_shrunk, .Machine$double.eps))
+    } else {
+      tryCatch(1 / rcond(S), error = function(e) NA_real_)
+    }
   }
   if (lambda == 0 && is.finite(cond_raw) && cond_raw > 1e8) {
     warning(sprintf("Sample covariance is ill-conditioned (condition number ~ %.3e); consider lambda='auto' or lambda > 0.", cond_raw))
@@ -374,7 +414,10 @@ whiten_model <- function(X, center = TRUE,
     fit_args$eig_method <- eig_method
     fit_args$fast <- fast
   }
-  
+  if (!is.null(precomp_eig)) {
+    fit_args$precomp <- precomp_eig
+  }
+
   res <- do.call(.method_to_function(method), fit_args)
   W   <- res$W
   decomp <- if (!is.null(res$decomp)) res$decomp else list()
@@ -394,6 +437,7 @@ whiten_model <- function(X, center = TRUE,
       lambda = lambda,
       lambda_input = if (lambda_auto) "auto" else as.character(lambda),
       lambda_method = if (lambda_auto) lambda_method else NA_character_,
+      shrink_target = shrink_target,
       eig_method = eig_method,
       fast = fast,
       cov_estimator = cov_estimator,
@@ -421,6 +465,11 @@ whiten_model <- function(X, center = TRUE,
 #' @param object A \code{whiten_model} object.
 #' @param newdata Numeric matrix with the same number of columns
 #'   as the data used to fit the model.
+#' @param recenter Logical; if \code{TRUE}, center \code{newdata} by its own
+#'   column means instead of the stored training mean. This is useful for
+#'   cross-session / cross-subject transfer where the test data has shifted
+#'   relative to the training distribution. Ignored when the model was fitted
+#'   with \code{center = FALSE}.
 #' @param ... Unused.
 #'
 #' @return Whitened data matrix (possibly with reduced dimensions).
@@ -436,20 +485,25 @@ whiten_model <- function(X, center = TRUE,
 #'
 #' @export
 #' @method predict whiten_model
-predict.whiten_model <- function(object, newdata, ...) {
+predict.whiten_model <- function(object, newdata, recenter = FALSE, ...) {
   if (!inherits(object, "whiten_model")) stop("object must be a 'whiten_model'.")
   if (!is.matrix(newdata)) stop("newdata must be a matrix.")
   if (!is.numeric(newdata)) stop("newdata must be a numeric matrix.")
   if (any(!is.finite(newdata))) stop("newdata must contain only finite values.")
+  if (!is.logical(recenter) || length(recenter) != 1L || is.na(recenter)) {
+    stop("recenter must be TRUE or FALSE.")
+  }
 
   d <- length(object$center)
   if (ncol(newdata) != d) {
     stop(sprintf("Mismatch: Model expects %d columns, but newdata has %d.", d, ncol(newdata)))
   }
 
-  # Center using stored mean (skip if centering was disabled)
+  # Center using stored mean (skip if centering was disabled).
+  # recenter = TRUE uses the new data's own column means instead.
   Xc <- if (isTRUE(object$center_enabled)) {
-    sweep(newdata, 2, object$center, "-")
+    mu <- if (recenter) colMeans(newdata) else object$center
+    .center_cols(newdata, mu)
   } else {
     newdata
   }
@@ -574,6 +628,11 @@ unwhiten_fast <- function(Z, model) {
 #'   \item{diag_range}{Range (min, max) of diagonal entries of \code{cov(Z)}.}
 #'   \item{diag_mean}{Mean diagonal value.}
 #'   \item{offdiag_frob}{Frobenius norm of off-diagonal entries.}
+#'   \item{cov_dev_frob}{Frobenius norm of \code{cov(Z) - I} (total deviation
+#'     from identity, including the diagonal).}
+#'   \item{logdet}{Log-determinant of \code{cov(Z)} (0 for perfectly white data).}
+#'   \item{whiteness}{Bounded score in \code{[0, 1]}, equal to 1 when
+#'     \code{cov(Z) = I} and decreasing as the data departs from white.}
 #'   \item{dim}{Number of components.}
 #'   \item{cov_matrix}{The sample covariance of \code{Z}.}
 #'
@@ -592,22 +651,75 @@ check_whitening <- function(Z) {
   if (!is.matrix(Z)) stop("Z must be a matrix.")
   if (!is.numeric(Z)) stop("Z must be a numeric matrix.")
   if (any(!is.finite(Z))) stop("Z must contain only finite values.")
-  
+
   S <- stats::cov(Z)
   d <- ncol(Z)
-  
+
   diag_vals  <- diag(S)
   diag_range <- range(diag_vals)
-  
+
   off_diag <- S
   diag(off_diag) <- 0
   off_norm <- norm(off_diag, type = "F")
-  
+
+  cov_dev_frob <- norm(S - diag(d), type = "F")
+  logdet <- as.numeric(determinant(S, logarithm = TRUE)$modulus)
+  rel_dev <- cov_dev_frob / sqrt(d)
+  whiteness <- max(0, 1 - rel_dev)
+
   list(
     diag_range   = diag_range,
     diag_mean    = mean(diag_vals),
     offdiag_frob = off_norm,
+    cov_dev_frob = cov_dev_frob,
+    logdet       = logdet,
+    whiteness    = whiteness,
     dim          = d,
     cov_matrix   = S
   )
+}
+
+#' Spatial filters and forward patterns of a whitening model
+#'
+#' Returns the linear spatial filters (the rows of the whitening matrix
+#' \code{W}, mapping channels to whitened components) and the corresponding
+#' forward patterns (mapping components back to channel space). Patterns are
+#' the appropriate object to visualize or interpret as scalp topographies
+#' (Haufe et al., 2014); filter weights alone can be misleading.
+#'
+#' @param model A \code{whiten_model} object.
+#'
+#' @return A list with:
+#'   \item{filters}{Matrix \code{[n_components x n_channels]}; the whitening
+#'     filters \code{W} (each row extracts one whitened component).}
+#'   \item{patterns}{Matrix \code{[n_channels x n_components]}; the forward
+#'     patterns (columns), i.e. how each component projects back onto channels.}
+#'
+#' @references
+#' Haufe, S., et al. (2014). On the interpretation of weight vectors of linear
+#' models in multivariate neuroimaging. NeuroImage.
+#'
+#' @seealso \code{\link{whiten_model}}, \code{\link{unwhiten}}
+#'
+#' @examples
+#' set.seed(1)
+#' X <- matrix(rnorm(200 * 8), 200, 8)
+#' m <- whiten_model(X, method = "PCA", n_comp = 4, lambda = 0.1)
+#' fp <- whitening_patterns(m)
+#' dim(fp$patterns)
+#'
+#' @export
+whitening_patterns <- function(model) {
+  if (!inherits(model, "whiten_model")) {
+    stop("model must be a 'whiten_model' object.")
+  }
+  W <- model$W
+  inv_tW <- if (!is.null(model$inv_tW)) model$inv_tW else .pinv(t(W))
+  # inv_tW is [k x d]: rows map whitened components back to channels.
+  patterns <- t(inv_tW)
+  ch_names <- if (!is.null(colnames(W))) colnames(W) else names(model$center)
+  comp_names <- rownames(W)
+  if (!is.null(ch_names)) rownames(patterns) <- ch_names
+  if (!is.null(comp_names)) colnames(patterns) <- comp_names
+  list(filters = W, patterns = patterns)
 }
