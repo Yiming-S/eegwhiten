@@ -70,6 +70,12 @@ A list with:
 
   Covariances used to estimate `C_ref`.
 
+- centers:
+
+  List of per-matrix centering vectors actually subtracted (column means
+  when `center = TRUE`, zeros otherwise; `NULL` entries for covariance
+  input).
+
 - input_type:
 
   Resolved input type (`"raw"` or `"cov"`).
