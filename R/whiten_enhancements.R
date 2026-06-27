@@ -95,7 +95,7 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL, decay = 1) {
 
   lambda <- if (!is.null(model$lambda) && is.finite(model$lambda)) model$lambda else 0
   .check_unit_interval(lambda, "lambda")
-  shrink_target <- if (!is.null(model$shrink_target)) model$shrink_target else "identity"
+  shrink_target <- model$shrink_target
 
   S <- .shrink_cov(S, lambda, target = shrink_target)
 

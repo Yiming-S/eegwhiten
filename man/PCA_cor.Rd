@@ -34,8 +34,8 @@ fast inverse transformation.}
 \item{eig_method}{Eigen solver backend; one of \code{"auto"},
 \code{"base"}, or \code{"rspectra"}.}
 
-\item{fast}{Logical; if \code{TRUE}, use relaxed checks and faster iterative
-eigensolver settings when available.}
+\item{fast}{Logical; if \code{TRUE}, use faster iterative eigensolver
+settings when available.}
 }
 \value{
 A list with some of the elements:

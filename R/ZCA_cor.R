@@ -16,8 +16,8 @@
 #'   fast inverse transformation.
 #' @param eig_method Eigen solver backend; one of \code{"auto"},
 #'   \code{"base"}, or \code{"rspectra"}.
-#' @param fast Logical; if \code{TRUE}, use relaxed checks and faster iterative
-#'   eigensolver settings when available.
+#' @param fast Logical; if \code{TRUE}, use faster iterative eigensolver
+#'   settings when available.
 #'
 #' @return A list with some of the elements:
 #'   \item{W}{Whitening matrix based on the correlation structure.}
@@ -54,10 +54,6 @@ ZCA_cor <- function(Sigma,
   }
   
   R <- stats::cov2cor(Sigma)
-  tol_diag <- if (fast) 1e-5 else sqrt(.Machine$double.eps)
-  if (any(abs(diag(R) - 1) > tol_diag)) {
-    stop("Diagonal elements of the correlation matrix must be approximately 1.")
-  }
   dec <- .eigen_spd(R, k = ncol(R), method = eig_method, fast = fast)
   theta <- dec$values
   G <- dec$vectors
