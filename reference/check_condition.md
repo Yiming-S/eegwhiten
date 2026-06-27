@@ -31,5 +31,5 @@ positive eigenvalues exist).
 ``` r
 X <- matrix(rnorm(100 * 8), 100, 8)
 check_condition(X)
-#> [1] 2.340863
+#> [1] 2.275407
 ```

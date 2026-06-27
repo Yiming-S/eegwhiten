@@ -33,6 +33,8 @@ A list of `[p x p]` SPD matrices.
 
 Other riemannian:
 [`epoch_covariances()`](https://yiming-s.github.io/eegwhiten/reference/epoch_covariances.md),
+[`riemann_distance()`](https://yiming-s.github.io/eegwhiten/reference/riemann_distance.md),
+[`spd_mean()`](https://yiming-s.github.io/eegwhiten/reference/spd_mean.md),
 [`tangent_space()`](https://yiming-s.github.io/eegwhiten/reference/tangent_space.md)
 
 ## Examples
@@ -44,5 +46,5 @@ covs <- epoch_covariances(X)
 V <- tangent_space(covs, mean_method = "logeuclid")
 covs_rec <- untangent_space(V)
 max(abs(covs_rec[[1]] - covs[[1]]))
-#> [1] 1.776357e-15
+#> [1] 1.998401e-15
 ```

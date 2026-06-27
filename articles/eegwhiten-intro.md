@@ -146,9 +146,9 @@ print(tuned)
 #>   top 4 configurations:
 #>  method n_comp var_threshold lambda cov_estimator mean_score  sd_score
 #>     PCA      8            NA    0.1     empirical -0.8503463 0.1056367
-#>     PCA      8            NA   auto     empirical -0.9261697 0.2005509
 #>     PCA     12            NA    0.1     empirical -1.1336164 0.2216557
-#>     PCA     NA            NA   auto     empirical -1.6602069 0.3187931
+#>     PCA      8            NA   auto     empirical -1.1809458 0.6216179
+#>     PCA     12            NA   auto     empirical -1.4801419 0.6928170
 #>  n_success
 #>          3
 #>          3
@@ -227,8 +227,37 @@ dim(V)                       # 40 trials x p(p+1)/2 features
 
 covs_rec <- untangent_space(V)   # inverse map
 max(abs(covs_rec[[1]] - covs[[1]]))
-#> [1] 4.440892e-15
+#> [1] 7.105427e-15
 ```
+
+### Riemannian distances, means, and barycenter whitening
+
+The geometry primitives behind alignment are available directly.
+[`spd_mean()`](https://yiming-s.github.io/eegwhiten/reference/spd_mean.md)
+computes the geometric (Riemannian), log-Euclidean, or arithmetic mean
+of a set of covariances;
+[`riemann_distance()`](https://yiming-s.github.io/eegwhiten/reference/riemann_distance.md)
+gives the affine-invariant distance; and
+[`barycenter_whitener()`](https://yiming-s.github.io/eegwhiten/reference/barycenter_whitener.md)
+fits a whitener that maps the geometric mean of a set of covariances to
+the identity.
+
+``` r
+
+M <- spd_mean(covs, metric = "riemann")
+riemann_distance(covs[[1]], M)
+#> [1] 0.8729882
+
+bw <- barycenter_whitener(covs, metric = "riemann")
+Z_bw <- predict(bw, matrix(rnorm(100 * 8), 100, 8))
+dim(Z_bw)
+#> [1] 100   8
+```
+
+`lambda = "auto"` also works with `shrink_target = "diagonal"` (a
+scale-invariant Schaefer-Strimmer intensity), and with `"auto"` inside
+[`epoch_covariances()`](https://yiming-s.github.io/eegwhiten/reference/epoch_covariances.md)
+for per-epoch shrinkage.
 
 ## Relative / generalized-eigenvalue whitening
 
@@ -243,7 +272,7 @@ Sigma_signal <- cov(matrix(rnorm(200 * 6), 200, 6) %*% diag(c(4, 3, 2, 1, 1, 1))
 Sigma_noise  <- cov(matrix(rnorm(200 * 6), 200, 6))
 gr <- whiten_relative(Sigma_signal, reference = Sigma_noise, n_comp = 3)
 round(gr$values, 3)
-#> [1] 14.154  8.414  3.884
+#> [1] 19.766 10.533  3.873
 ```
 
 ## Online updates with forgetting
@@ -283,7 +312,7 @@ txt <- report_whitening(m, data = X_train, file = NULL)
 cat(substr(txt, 1, 280), "...\n")
 #> # Whitening Report
 #> 
-#> - Generated at: 2026-06-27 20:19:36 UTC
+#> - Generated at: 2026-06-27 21:11:30 UTC
 #> - Method: PCA
 #> - Dimensions: 16 -> 16
 #> - n_comp: 16

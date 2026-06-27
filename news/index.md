@@ -1,5 +1,24 @@
 # Changelog
 
+## eegwhiten 0.5.0
+
+### New features
+
+- [`riemann_distance()`](https://yiming-s.github.io/eegwhiten/reference/riemann_distance.md)
+  and
+  [`spd_mean()`](https://yiming-s.github.io/eegwhiten/reference/spd_mean.md)
+  expose the affine-invariant Riemannian (and log-Euclidean / Euclidean)
+  distance and mean of SPD covariance matrices.
+- [`barycenter_whitener()`](https://yiming-s.github.io/eegwhiten/reference/barycenter_whitener.md)
+  fits a whitener that maps the geometric mean of a set of covariances
+  to the identity (align to the Riemannian barycenter).
+- `lambda = "auto"` now works with `shrink_target = "diagonal"`, using
+  the scale-invariant Schaefer-Strimmer shrinkage intensity (verified
+  against `corpcor::estimate.lambda`).
+- [`epoch_covariances()`](https://yiming-s.github.io/eegwhiten/reference/epoch_covariances.md)
+  accepts `lambda = "auto"` for a per-epoch Ledoit-Wolf shrinkage
+  intensity.
+
 ## eegwhiten 0.4.1
 
 - [`predict()`](https://rdrr.io/r/stats/predict.html) now works directly

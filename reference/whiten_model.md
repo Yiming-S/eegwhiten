@@ -106,7 +106,9 @@ whiten_model(
   Covariance shrinkage target; one of `"identity"` (shrink toward a
   scaled identity `(tr(S)/d) I`, the default) or `"diagonal"` (shrink
   correlations toward zero while preserving the per-channel variances
-  `diag(S)`). `lambda = "auto"` requires `"identity"`.
+  `diag(S)`). `lambda = "auto"` works with both: it uses Ledoit-Wolf /
+  OAS for the identity target and the scale-invariant Schaefer-Strimmer
+  intensity for the diagonal target (`lambda_method` is then ignored).
 
 - na_action:
 

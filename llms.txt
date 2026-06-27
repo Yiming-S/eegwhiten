@@ -393,6 +393,9 @@ Cross-session / cross-subject covariance alignment.
   : Apply an EA Model to New Data
 - [`inverse_ea()`](https://yiming-s.github.io/eegwhiten/reference/inverse_ea.md)
   : Inverse Transform for EA-Aligned Data
+- [`barycenter_whitener()`](https://yiming-s.github.io/eegwhiten/reference/barycenter_whitener.md)
+  : Fit a whitener that maps the barycenter of a set of covariances to
+  identity
 - [`whiten_relative()`](https://yiming-s.github.io/eegwhiten/reference/whiten_relative.md)
   : Relative whitening via a generalized eigenvalue decomposition
 
@@ -406,6 +409,10 @@ Tangent-space mapping for SPD covariance matrices.
   : Map SPD covariance matrices to the tangent space
 - [`untangent_space()`](https://yiming-s.github.io/eegwhiten/reference/untangent_space.md)
   : Map tangent-space vectors back to SPD covariance matrices
+- [`riemann_distance()`](https://yiming-s.github.io/eegwhiten/reference/riemann_distance.md)
+  : Distance between two SPD covariance matrices
+- [`spd_mean()`](https://yiming-s.github.io/eegwhiten/reference/spd_mean.md)
+  : Mean of a set of SPD covariance matrices
 
 ## S3 methods
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">eegwhiten</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,6 +36,20 @@
       <small>Source: <a href="https://github.com/Yiming-S/eegwhiten/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.5.0" id="eegwhiten-050">eegwhiten 0.5.0<a class="anchor" aria-label="anchor" href="#eegwhiten-050"></a></h2>
+<div class="section level3">
+<h3 id="new-features-0-5-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-5-0"></a></h3>
+<ul><li>
+<code><a href="../reference/riemann_distance.html">riemann_distance()</a></code> and <code><a href="../reference/spd_mean.html">spd_mean()</a></code> expose the affine-invariant Riemannian (and log-Euclidean / Euclidean) distance and mean of SPD covariance matrices.</li>
+<li>
+<code><a href="../reference/barycenter_whitener.html">barycenter_whitener()</a></code> fits a whitener that maps the geometric mean of a set of covariances to the identity (align to the Riemannian barycenter).</li>
+<li>
+<code>lambda = "auto"</code> now works with <code>shrink_target = "diagonal"</code>, using the scale-invariant Schaefer-Strimmer shrinkage intensity (verified against <code>corpcor::estimate.lambda</code>).</li>
+<li>
+<code><a href="../reference/epoch_covariances.html">epoch_covariances()</a></code> accepts <code>lambda = "auto"</code> for a per-epoch Ledoit-Wolf shrinkage intensity.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.1" id="eegwhiten-041">eegwhiten 0.4.1<a class="anchor" aria-label="anchor" href="#eegwhiten-041"></a></h2>
 <ul><li>

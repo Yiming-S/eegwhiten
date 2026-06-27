@@ -13,7 +13,7 @@ regularization (shrinkage) and dimensionality reduction."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">eegwhiten</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -157,8 +157,10 @@ sign orientation in <code>"PCA"</code>, <code>"PCA-cor"</code>, and <code>"SVD"<
 <dd><p>Covariance shrinkage target; one of <code>"identity"</code>
 (shrink toward a scaled identity <code>(tr(S)/d) I</code>, the default) or
 <code>"diagonal"</code> (shrink correlations toward zero while preserving the
-per-channel variances <code>diag(S)</code>). <code>lambda = "auto"</code> requires
-<code>"identity"</code>.</p></dd>
+per-channel variances <code>diag(S)</code>). <code>lambda = "auto"</code> works with
+both: it uses Ledoit-Wolf / OAS for the identity target and the
+scale-invariant Schaefer-Strimmer intensity for the diagonal target
+(<code>lambda_method</code> is then ignored).</p></dd>
 
 
 <dt id="arg-na-action">na_action<a class="anchor" aria-label="anchor" href="#arg-na-action"></a></dt>

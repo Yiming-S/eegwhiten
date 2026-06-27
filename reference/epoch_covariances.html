@@ -13,7 +13,7 @@ recentering."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">eegwhiten</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,12 +64,14 @@ recentering.</p>
 
 
 <dt id="arg-lambda">lambda<a class="anchor" aria-label="anchor" href="#arg-lambda"></a></dt>
-<dd><p>Numeric in <code>[0, 1]</code>; optional shrinkage of each
-covariance toward a scaled identity (<code>(1 - lambda) C + lambda (tr(C)/p) I</code>).
-Useful when the number of time samples is small relative to the number of
-channels. Defaults to 0 (no shrinkage). When <code>n_time &lt;= n_channels</code>,
-covariances are rank-deficient (not positive-definite) unless
-<code>lambda &gt; 0</code>; a warning is emitted in that case.</p></dd>
+<dd><p>Numeric in <code>[0, 1]</code> or the string <code>"auto"</code>; optional
+shrinkage of each covariance toward a scaled identity
+(<code>(1 - lambda) C + lambda (tr(C)/p) I</code>). <code>"auto"</code> selects a
+per-epoch Ledoit-Wolf intensity from that epoch's time samples. Useful when
+the number of time samples is small relative to the number of channels.
+Defaults to 0 (no shrinkage). When <code>n_time &lt;= n_channels</code>, covariances
+are rank-deficient (not positive-definite) unless <code>lambda &gt; 0</code>; a
+warning is emitted in that case.</p></dd>
 
 
 <dt id="arg-center">center<a class="anchor" aria-label="anchor" href="#arg-center"></a></dt>
@@ -92,6 +94,8 @@ before computing the covariance.</p></dd>
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="tangent_space.html">tangent_space</a></code>, <code><a href="recenter.html">recenter</a></code></p>
 <p>Other riemannian:
+<code><a href="riemann_distance.html">riemann_distance()</a></code>,
+<code><a href="spd_mean.html">spd_mean()</a></code>,
 <code><a href="tangent_space.html">tangent_space()</a></code>,
 <code><a href="untangent_space.html">untangent_space()</a></code></p></div>
     </div>

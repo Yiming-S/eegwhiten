@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">eegwhiten</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -235,9 +235,9 @@ parameters and returns a tuned object you can predict with directly.</p>
 <span><span class="co">#&gt;   top 4 configurations:</span></span>
 <span><span class="co">#&gt;  method n_comp var_threshold lambda cov_estimator mean_score  sd_score</span></span>
 <span><span class="co">#&gt;     PCA      8            NA    0.1     empirical -0.8503463 0.1056367</span></span>
-<span><span class="co">#&gt;     PCA      8            NA   auto     empirical -0.9261697 0.2005509</span></span>
 <span><span class="co">#&gt;     PCA     12            NA    0.1     empirical -1.1336164 0.2216557</span></span>
-<span><span class="co">#&gt;     PCA     NA            NA   auto     empirical -1.6602069 0.3187931</span></span>
+<span><span class="co">#&gt;     PCA      8            NA   auto     empirical -1.1809458 0.6216179</span></span>
+<span><span class="co">#&gt;     PCA     12            NA   auto     empirical -1.4801419 0.6928170</span></span>
 <span><span class="co">#&gt;  n_success</span></span>
 <span><span class="co">#&gt;          3</span></span>
 <span><span class="co">#&gt;          3</span></span>
@@ -301,7 +301,30 @@ tensor; <code><a href="../reference/tangent_space.html">tangent_space()</a></cod
 <span></span>
 <span><span class="va">covs_rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/untangent_space.html">untangent_space</a></span><span class="op">(</span><span class="va">V</span><span class="op">)</span>   <span class="co"># inverse map</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">covs_rec</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span> <span class="op">-</span> <span class="va">covs</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 4.440892e-15</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 7.105427e-15</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="riemannian-distances-means-and-barycenter-whitening">Riemannian distances, means, and barycenter whitening<a class="anchor" aria-label="anchor" href="#riemannian-distances-means-and-barycenter-whitening"></a>
+</h3>
+<p>The geometry primitives behind alignment are available directly.
+<code><a href="../reference/spd_mean.html">spd_mean()</a></code> computes the geometric (Riemannian),
+log-Euclidean, or arithmetic mean of a set of covariances;
+<code><a href="../reference/riemann_distance.html">riemann_distance()</a></code> gives the affine-invariant distance; and
+<code><a href="../reference/barycenter_whitener.html">barycenter_whitener()</a></code> fits a whitener that maps the
+geometric mean of a set of covariances to the identity.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">M</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/spd_mean.html">spd_mean</a></span><span class="op">(</span><span class="va">covs</span>, metric <span class="op">=</span> <span class="st">"riemann"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/riemann_distance.html">riemann_distance</a></span><span class="op">(</span><span class="va">covs</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="va">M</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 0.8729882</span></span>
+<span></span>
+<span><span class="va">bw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/barycenter_whitener.html">barycenter_whitener</a></span><span class="op">(</span><span class="va">covs</span>, metric <span class="op">=</span> <span class="st">"riemann"</span><span class="op">)</span></span>
+<span><span class="va">Z_bw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">bw</span>, <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">100</span> <span class="op">*</span> <span class="fl">8</span><span class="op">)</span>, <span class="fl">100</span>, <span class="fl">8</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">Z_bw</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 100   8</span></span></code></pre></div>
+<p><code>lambda = "auto"</code> also works with
+<code>shrink_target = "diagonal"</code> (a scale-invariant
+Schaefer-Strimmer intensity), and with <code>"auto"</code> inside
+<code><a href="../reference/epoch_covariances.html">epoch_covariances()</a></code> for per-epoch shrinkage.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="relative-generalized-eigenvalue-whitening">Relative / generalized-eigenvalue whitening<a class="anchor" aria-label="anchor" href="#relative-generalized-eigenvalue-whitening"></a>
@@ -310,12 +333,12 @@ tensor; <code><a href="../reference/tangent_space.html">tangent_space()</a></cod
 covariance and diagonalizes the target – the building block of CSP and
 xDAWN. The returned <code>values</code> are the per-component variance
 ratios.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Sigma_signal</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cov</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">200</span> <span class="op">*</span> <span class="fl">6</span><span class="op">)</span>, <span class="fl">200</span>, <span class="fl">6</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fl">3</span>, <span class="fl">2</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">Sigma_noise</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cov</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">200</span> <span class="op">*</span> <span class="fl">6</span><span class="op">)</span>, <span class="fl">200</span>, <span class="fl">6</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">gr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/whiten_relative.html">whiten_relative</a></span><span class="op">(</span><span class="va">Sigma_signal</span>, reference <span class="op">=</span> <span class="va">Sigma_noise</span>, n_comp <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">gr</span><span class="op">$</span><span class="va">values</span>, <span class="fl">3</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 14.154  8.414  3.884</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 19.766 10.533  3.873</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="online-updates-with-forgetting">Online updates with forgetting<a class="anchor" aria-label="anchor" href="#online-updates-with-forgetting"></a>
@@ -323,7 +346,7 @@ ratios.</p>
 <p><code><a href="../reference/whiten_model_update.html">whiten_model_update()</a></code> refreshes a model from summary
 moments. A <code>decay &lt; 1</code> down-weights past data to track
 non-stationary drift in streaming settings.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">X_new</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">80</span> <span class="op">*</span> <span class="fl">16</span><span class="op">)</span>, <span class="fl">80</span>, <span class="fl">16</span><span class="op">)</span></span>
 <span><span class="va">m2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/whiten_model_update.html">whiten_model_update</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">X_new</span>, decay <span class="op">=</span> <span class="fl">0.9</span><span class="op">)</span></span>
 <span><span class="va">m2</span><span class="op">$</span><span class="va">n_obs</span></span>
@@ -333,7 +356,7 @@ non-stationary drift in streaming settings.</p>
 <h2 id="tensor-data">Tensor data<a class="anchor" aria-label="anchor" href="#tensor-data"></a>
 </h2>
 <p>3D EEG tensors (trials x channels x time) are handled directly.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/whiten_model_tensor.html">whiten_model_tensor</a></span><span class="op">(</span><span class="va">X_tensor</span>, method <span class="op">=</span> <span class="st">"ZCA"</span>, lambda <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="va">Z_t</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predict_tensor.html">predict_tensor</a></span><span class="op">(</span><span class="va">m_t</span>, <span class="va">X_tensor</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">Z_t</span><span class="op">)</span></span>
@@ -345,12 +368,12 @@ non-stationary drift in streaming settings.</p>
 <div class="section level2">
 <h2 id="reporting">Reporting<a class="anchor" aria-label="anchor" href="#reporting"></a>
 </h2>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">txt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/report_whitening.html">report_whitening</a></span><span class="op">(</span><span class="va">m</span>, data <span class="op">=</span> <span class="va">X_train</span>, file <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="va">txt</span>, <span class="fl">1</span>, <span class="fl">280</span><span class="op">)</span>, <span class="st">"...\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # Whitening Report</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; - Generated at: 2026-06-27 20:19:36 UTC</span></span>
+<span><span class="co">#&gt; - Generated at: 2026-06-27 21:11:30 UTC</span></span>
 <span><span class="co">#&gt; - Method: PCA</span></span>
 <span><span class="co">#&gt; - Dimensions: 16 -&gt; 16</span></span>
 <span><span class="co">#&gt; - n_comp: 16</span></span>

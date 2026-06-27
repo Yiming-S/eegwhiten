@@ -75,6 +75,7 @@ IEEE Signal Processing Magazine.
 [`euclidean_alignment`](https://yiming-s.github.io/eegwhiten/reference/euclidean_alignment.md)
 
 Other alignment:
+[`barycenter_whitener()`](https://yiming-s.github.io/eegwhiten/reference/barycenter_whitener.md),
 [`euclidean_alignment()`](https://yiming-s.github.io/eegwhiten/reference/euclidean_alignment.md),
 [`recenter()`](https://yiming-s.github.io/eegwhiten/reference/recenter.md)
 

@@ -15,6 +15,7 @@
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/ZCA.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/ZCA_cor.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/auto_tune_whitening.html</loc></url>
+<url><loc>https://yiming-s.github.io/eegwhiten/reference/barycenter_whitener.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/check_condition.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/check_whitening.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/eegwhiten-package.html</loc></url>
@@ -37,6 +38,8 @@
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/print.whiten_tune.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/recenter.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/report_whitening.html</loc></url>
+<url><loc>https://yiming-s.github.io/eegwhiten/reference/riemann_distance.html</loc></url>
+<url><loc>https://yiming-s.github.io/eegwhiten/reference/spd_mean.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/summary.ea_model.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/summary.whiten_model.html</loc></url>
 <url><loc>https://yiming-s.github.io/eegwhiten/reference/tangent_space.html</loc></url>

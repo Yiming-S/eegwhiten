@@ -96,6 +96,7 @@ on Biomedical Engineering.
 with `mode = "ea"`.
 
 Other alignment:
+[`barycenter_whitener()`](https://yiming-s.github.io/eegwhiten/reference/barycenter_whitener.md),
 [`recenter()`](https://yiming-s.github.io/eegwhiten/reference/recenter.md),
 [`whiten_relative()`](https://yiming-s.github.io/eegwhiten/reference/whiten_relative.md)
 

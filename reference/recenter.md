@@ -81,6 +81,7 @@ on Biomedical Engineering.
 with `mode = "recenter"`.
 
 Other alignment:
+[`barycenter_whitener()`](https://yiming-s.github.io/eegwhiten/reference/barycenter_whitener.md),
 [`euclidean_alignment()`](https://yiming-s.github.io/eegwhiten/reference/euclidean_alignment.md),
 [`whiten_relative()`](https://yiming-s.github.io/eegwhiten/reference/whiten_relative.md)
 

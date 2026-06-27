@@ -74,6 +74,8 @@ geometry. IEEE Transactions on Biomedical Engineering.
 
 Other riemannian:
 [`epoch_covariances()`](https://yiming-s.github.io/eegwhiten/reference/epoch_covariances.md),
+[`riemann_distance()`](https://yiming-s.github.io/eegwhiten/reference/riemann_distance.md),
+[`spd_mean()`](https://yiming-s.github.io/eegwhiten/reference/spd_mean.md),
 [`untangent_space()`](https://yiming-s.github.io/eegwhiten/reference/untangent_space.md)
 
 ## Examples
