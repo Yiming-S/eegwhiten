@@ -47,37 +47,43 @@
 #' recentering.
 #'
 #' @param X_tensor Numeric 3D array \code{[n_trials, n_channels, n_time]}.
-#' @param shrinkage Numeric in \code{[0, 1]}; optional shrinkage of each
-#'   covariance toward a scaled identity (\code{(1 - s) C + s (tr(C)/p) I}).
+#' @param lambda Numeric in \code{[0, 1]}; optional shrinkage of each
+#'   covariance toward a scaled identity (\code{(1 - lambda) C + lambda (tr(C)/p) I}).
 #'   Useful when the number of time samples is small relative to the number of
 #'   channels. Defaults to 0 (no shrinkage). When \code{n_time <= n_channels},
 #'   covariances are rank-deficient (not positive-definite) unless
-#'   \code{shrinkage > 0}; a warning is emitted in that case.
+#'   \code{lambda > 0}; a warning is emitted in that case.
 #' @param center Logical; whether to subtract each channel's mean over time
 #'   before computing the covariance.
+#' @param shrinkage Deprecated; use \code{lambda}.
 #'
 #' @return A list of \code{[n_channels x n_channels]} covariance matrices,
 #'   one per trial. They are positive-definite (suitable as
 #'   \code{\link{tangent_space}} input) only when \code{n_time > n_channels} or
-#'   \code{shrinkage > 0}.
+#'   \code{lambda > 0}.
 #'
+#' @family riemannian
 #' @seealso \code{\link{tangent_space}}, \code{\link{recenter}}
 #'
 #' @examples
 #' set.seed(1)
 #' X <- array(rnorm(20 * 8 * 64), dim = c(20, 8, 64))
-#' covs <- epoch_covariances(X, shrinkage = 0.05)
+#' covs <- epoch_covariances(X, lambda = 0.05)
 #' length(covs)
 #'
 #' @export
-epoch_covariances <- function(X_tensor, shrinkage = 0, center = TRUE) {
+epoch_covariances <- function(X_tensor, lambda = 0, center = TRUE, shrinkage = NULL) {
+  if (!is.null(shrinkage)) {
+    warning("'shrinkage' is deprecated; use 'lambda'.", call. = FALSE)
+    lambda <- shrinkage
+  }
   if (!is.array(X_tensor) || length(dim(X_tensor)) != 3L) {
     stop("X_tensor must be a 3D numeric array with shape [n_trials, n_channels, n_time].")
   }
   if (!is.numeric(X_tensor) || any(!is.finite(X_tensor))) {
     stop("X_tensor must contain only finite numeric values.")
   }
-  .check_unit_interval(shrinkage, "shrinkage")
+  .check_unit_interval(lambda, "lambda")
   if (!is.logical(center) || length(center) != 1L || is.na(center)) {
     stop("center must be TRUE or FALSE.")
   }
@@ -87,8 +93,8 @@ epoch_covariances <- function(X_tensor, shrinkage = 0, center = TRUE) {
   n_channels <- dims[2]
   n_time <- dims[3]
   if (n_time < 2L) stop("Each trial must have at least 2 time samples.")
-  if (shrinkage == 0 && n_time <= n_channels) {
-    warning("n_time <= n_channels with shrinkage = 0: per-epoch covariances are rank-deficient (not positive-definite). Set shrinkage > 0 for a stable tangent-space mapping.")
+  if (lambda == 0 && n_time <= n_channels) {
+    warning("n_time <= n_channels with lambda = 0: per-epoch covariances are rank-deficient (not positive-definite). Set lambda > 0 for a stable tangent-space mapping.")
   }
 
   lapply(seq_len(n_trials), function(i) {
@@ -97,7 +103,7 @@ epoch_covariances <- function(X_tensor, shrinkage = 0, center = TRUE) {
     if (center) Xi <- Xi - rowMeans(Xi)
     C <- tcrossprod(Xi) / (n_time - 1L)
     C <- .symmetrize(C)
-    if (shrinkage > 0) C <- .shrink_cov(C, shrinkage, target = "identity")
+    if (lambda > 0) C <- .shrink_cov(C, lambda, target = "identity")
     C
   })
 }
@@ -136,12 +142,13 @@ epoch_covariances <- function(X_tensor, shrinkage = 0, center = TRUE) {
 #' brain-computer interface classification by Riemannian geometry. IEEE
 #' Transactions on Biomedical Engineering.
 #'
+#' @family riemannian
 #' @seealso \code{\link{untangent_space}}, \code{\link{epoch_covariances}}
 #'
 #' @examples
 #' set.seed(1)
 #' X <- array(rnorm(30 * 6 * 64), dim = c(30, 6, 64))
-#' covs <- epoch_covariances(X, shrinkage = 0.05)
+#' covs <- epoch_covariances(X, lambda = 0.05)
 #' V <- tangent_space(covs, mean_method = "logeuclid")
 #' dim(V)
 #'
@@ -201,6 +208,7 @@ tangent_space <- function(covs,
 #'
 #' @return A list of \code{[p x p]} SPD matrices.
 #'
+#' @family riemannian
 #' @seealso \code{\link{tangent_space}}
 #'
 #' @examples

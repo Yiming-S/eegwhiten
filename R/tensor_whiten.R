@@ -85,11 +85,15 @@ predict_tensor <- function(model, X_tensor) {
 
 #' Inverse transform a whitened 3D EEG tensor
 #'
-#' @param Z_tensor Numeric 3D array \code{[n_trials, n_components, n_time]}.
 #' @param model A \code{whiten_model} object.
+#' @param Z_tensor Numeric 3D array \code{[n_trials, n_components, n_time]}.
 #'
 #' @return Reconstructed 3D array \code{[n_trials, n_channels, n_time]}.
 #'
+#' @details The deprecated argument order \code{unwhiten_tensor(Z_tensor, model)}
+#'   is still accepted (with a warning) for backward compatibility.
+#'
+#' @family inverse transforms
 #' @seealso \code{\link{whiten_model_tensor}}, \code{\link{predict_tensor}},
 #'   \code{\link{unwhiten}}
 #'
@@ -98,13 +102,13 @@ predict_tensor <- function(model, X_tensor) {
 #' X_t <- array(rnorm(20 * 6 * 40), dim = c(20, 6, 40))
 #' m <- whiten_model_tensor(X_t, method = "ZCA", lambda = 0)
 #' Z_t <- predict_tensor(m, X_t)
-#' X_rec <- unwhiten_tensor(Z_t, m)
+#' X_rec <- unwhiten_tensor(m, Z_t)
 #'
 #' @export
-unwhiten_tensor <- function(Z_tensor, model) {
-  if (!inherits(model, "whiten_model")) {
-    stop("model must be a 'whiten_model' object.")
-  }
+unwhiten_tensor <- function(model, Z_tensor) {
+  io <- .order_model_first(model, Z_tensor, "whiten_model", "unwhiten_tensor")
+  model <- io$model
+  Z_tensor <- io$data
   if (!is.array(Z_tensor) || length(dim(Z_tensor)) != 3L) {
     stop("Z_tensor must be a 3D numeric array with shape [n_trials, n_components, n_time].")
   }
@@ -122,7 +126,7 @@ unwhiten_tensor <- function(Z_tensor, model) {
 
   Z_perm <- aperm(Z_tensor, c(1, 3, 2))
   Z_mat <- array(Z_perm, dim = c(n_trials * n_time, n_comp))
-  X_mat <- unwhiten_fast(Z_mat, model)
+  X_mat <- unwhiten_fast(model, Z_mat)
 
   X_perm <- array(X_mat, dim = c(n_trials, n_time, model$dim_in))
   aperm(X_perm, c(1, 3, 2))

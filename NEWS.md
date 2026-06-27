@@ -1,3 +1,35 @@
+# eegwhiten 0.4.0
+
+## Correctness
+
+* `cov_estimator = "tyler"` now restores the covariance scale (Tyler's iteration
+  estimates only the trace-normalized shape), so whitening with it produces
+  approximately unit-variance data instead of decorrelated-but-mis-scaled data.
+* The positive-definiteness check is now scale-invariant (relative to the
+  largest eigenvalue), so well-conditioned data at any magnitude -- e.g. EEG in
+  volts -- is no longer falsely rejected. Correlation-based methods test
+  positive-definiteness on the correlation matrix.
+
+## API consistency
+
+* Functions taking a model and data now use a consistent model-first argument
+  order: `unwhiten(model, Z)`, `unwhiten_fast(model, Z)`,
+  `unwhiten_tensor(model, Z_tensor)`, and `inverse_ea(model, Z)`. The old
+  data-first order still works with a deprecation warning.
+* `epoch_covariances()` shrinkage argument is renamed `lambda` (matching the
+  rest of the package); `shrinkage` is deprecated.
+* `predict.whiten_model()` argument `recenter` is renamed `self_center` to avoid
+  clashing with the `recenter()` function; `recenter` is deprecated.
+* `recenter()`, `whiten_relative()`, the tuning result (`whiten_tune`), and
+  `ea_model` now have `print()` methods (and `predict()` where applicable),
+  instead of returning bare lists.
+
+## Packaging
+
+* Added pkgdown configuration, a coverage workflow, R-devel/oldrel CI, a
+  `CITATION`, README badges, `cran-comments.md`, `CONTRIBUTING.md`, and
+  `CODE_OF_CONDUCT.md`.
+
 # eegwhiten 0.3.0
 
 ## New features

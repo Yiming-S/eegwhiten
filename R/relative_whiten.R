@@ -37,6 +37,7 @@
 #' (2008). Optimizing spatial filters for robust EEG single-trial analysis.
 #' IEEE Signal Processing Magazine.
 #'
+#' @family alignment
 #' @seealso \code{\link{whiten_model}}, \code{\link{euclidean_alignment}}
 #'
 #' @examples
@@ -88,10 +89,49 @@ whiten_relative <- function(Sigma, reference, n_comp = NULL, eps = 1e-10) {
   if (!is.null(ch_names)) rownames(patterns) <- ch_names
   colnames(patterns) <- comp_names
 
-  list(
-    W = W,
-    values = gk,
-    patterns = patterns,
-    reference_inv_sqrt = R
+  structure(
+    list(
+      W = W,
+      values = gk,
+      patterns = patterns,
+      reference_inv_sqrt = R
+    ),
+    class = "relative_whiten"
   )
+}
+
+#' Print a relative-whitening model
+#'
+#' @param x A \code{relative_whiten} object.
+#' @param ... Unused.
+#' @return The input object invisibly.
+#' @export
+#' @method print relative_whiten
+print.relative_whiten <- function(x, ...) {
+  cat("<relative_whiten>\n")
+  cat("  components :", nrow(x$W), "\n")
+  cat("  channels   :", ncol(x$W), "\n")
+  n_show <- min(6L, length(x$values))
+  cat("  variance ratios:", paste(signif(x$values[seq_len(n_show)], 3), collapse = ", "),
+      if (length(x$values) > 6L) "..." else "", "\n")
+  invisible(x)
+}
+
+#' Apply a relative-whitening model to new data
+#'
+#' @param object A \code{relative_whiten} object.
+#' @param newdata Numeric matrix with the same number of channels.
+#' @param ... Unused.
+#' @return Filtered data matrix \code{newdata \%*\% t(W)}.
+#' @export
+#' @method predict relative_whiten
+predict.relative_whiten <- function(object, newdata, ...) {
+  if (!inherits(object, "relative_whiten")) stop("object must be a 'relative_whiten' object.")
+  if (!is.matrix(newdata) || !is.numeric(newdata) || any(!is.finite(newdata))) {
+    stop("newdata must be a finite numeric matrix.")
+  }
+  if (ncol(newdata) != ncol(object$W)) {
+    stop(sprintf("Mismatch: model expects %d channels, but newdata has %d.", ncol(object$W), ncol(newdata)))
+  }
+  newdata %*% t(object$W)
 }

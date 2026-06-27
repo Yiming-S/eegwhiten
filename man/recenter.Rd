@@ -58,4 +58,9 @@ Engineering.
 \seealso{
 \code{\link{euclidean_alignment}}, \code{\link{whiten_batch}} with
   \code{mode = "recenter"}.
+
+Other alignment: 
+\code{\link{euclidean_alignment}()},
+\code{\link{whiten_relative}()}
 }
+\concept{alignment}

@@ -127,10 +127,10 @@ test_that("predict(recenter=TRUE) centers on the new data's own mean", {
   m <- whiten_model(X, method = "ZCA", lambda = 0.1)
   Xt <- sweep(make_structured(80, 6, seed = 8), 2, rep(5, 6), "+")
   Z_default <- predict(m, Xt)
-  Z_recenter <- predict(m, Xt, recenter = TRUE)
+  Z_recenter <- predict(m, Xt, self_center = TRUE)
   expect_lt(mean(abs(colMeans(Z_recenter))), mean(abs(colMeans(Z_default))))
   expect_lt(mean(abs(colMeans(Z_recenter))), 1e-8)
-  expect_error(predict(m, Xt, recenter = NA), "recenter")
+  expect_error(predict(m, Xt, self_center = NA), "self_center")
 })
 
 # ---- whitening_patterns ----
@@ -216,7 +216,7 @@ test_that("auto_tune accepts var_threshold_grid (regression test)", {
 test_that("epoch_covariances returns one SPD matrix per trial", {
   set.seed(15)
   Xt <- array(rnorm(20 * 6 * 64), dim = c(20, 6, 64))
-  covs <- epoch_covariances(Xt, shrinkage = 0.05)
+  covs <- epoch_covariances(Xt, lambda = 0.05)
   expect_length(covs, 20)
   expect_equal(dim(covs[[1]]), c(6, 6))
   expect_true(all(eigen(covs[[1]], only.values = TRUE)$values > 0))
@@ -225,7 +225,7 @@ test_that("epoch_covariances returns one SPD matrix per trial", {
 test_that("tangent_space round-trips and is isometric", {
   set.seed(16)
   Xt <- array(rnorm(25 * 6 * 80), dim = c(25, 6, 80))
-  covs <- epoch_covariances(Xt, shrinkage = 0.05)
+  covs <- epoch_covariances(Xt, lambda = 0.05)
   V <- tangent_space(covs, mean_method = "logeuclid")
   expect_equal(dim(V), c(25, 6 * 7 / 2))
   covs_rec <- untangent_space(V)
@@ -306,7 +306,7 @@ test_that("epoch_covariances warns when rank-deficient without shrinkage", {
   set.seed(26)
   Xt <- array(rnorm(5 * 8 * 6), dim = c(5, 8, 6))  # n_time(6) < n_channels(8)
   expect_warning(epoch_covariances(Xt), "rank-deficient")
-  expect_silent(epoch_covariances(Xt, shrinkage = 0.1))
+  expect_silent(epoch_covariances(Xt, lambda = 0.1))
 })
 
 test_that("fast_tune stays consistent with full refit even with lambda = 1 in the grid", {
@@ -332,4 +332,127 @@ test_that("whiten_relative whitens the reference and diagonalizes the target", {
   expect_equal(gr$W %*% Sb %*% t(gr$W), diag(gr$values), tolerance = 1e-8, ignore_attr = TRUE)
   expect_false(is.unsorted(rev(gr$values)))
   expect_equal(dim(whiten_relative(Sb, Sa, n_comp = 3)$W), c(3, p))
+})
+
+# ---- T1 correctness: Tyler scale ----
+
+test_that("Tyler covariance is scale-restored: Gaussian whitening ~ identity", {
+  set.seed(40)
+  X <- matrix(rnorm(500 * 6), 500, 6)
+  m <- whiten_model(X, method = "ZCA", lambda = 0, cov_estimator = "tyler")
+  dm <- check_whitening(predict(m, X))$diag_mean
+  expect_equal(dm, 1, tolerance = 0.15)        # was ~9.9 before the scale fix
+  # heavy-tailed: scale is O(1), not grossly off
+  Xt <- matrix(rt(500 * 6, df = 3), 500, 6)
+  mt <- whiten_model(Xt, method = "ZCA", lambda = 0, cov_estimator = "tyler")
+  expect_lt(check_whitening(predict(mt, Xt))$diag_mean, 3)
+})
+
+# ---- T1 correctness: scale-invariant positive-definiteness ----
+
+test_that("PD check is scale-invariant (tiny-magnitude well-conditioned data accepted)", {
+  # A well-conditioned (cond = 2) matrix at tiny magnitude must NOT be rejected.
+  S_tiny <- diag(c(1e-10, 2e-10, 1.5e-10))
+  expect_silent(W <- whiten_fit(S_tiny, method = "ZCA"))
+  expect_equal(dim(W), c(3, 3))
+
+  # EEG-in-volts magnitude whitens to identity just like the unit-scale data.
+  set.seed(41)
+  X <- matrix(rnorm(300 * 6), 300, 6)
+  m_unit <- whiten_model(X, method = "ZCA", lambda = 0)
+  m_volt <- whiten_model(X * 1e-6, method = "ZCA", lambda = 0)
+  expect_equal(check_whitening(predict(m_unit, X))$diag_mean, 1, tolerance = 1e-8)
+  expect_equal(check_whitening(predict(m_volt, X * 1e-6))$diag_mean, 1, tolerance = 1e-8)
+
+  # Genuinely singular / non-PD still errors.
+  expect_error(whiten_fit(matrix(1, 4, 4), method = "ZCA"), "positive-definite")
+
+  # Correlation-based methods tolerate extreme heterogeneous channel scales.
+  Xs <- matrix(rnorm(300 * 4), 300, 4) %*% diag(c(1e-6, 1, 1e3, 1e6))
+  expect_silent(whiten_model(Xs, method = "ZCA-cor", lambda = 0))
+})
+
+# ---- T1 test strengthening: rspectra backend, supervised tuning ----
+
+test_that("eig_method='rspectra' agrees with 'base'", {
+  skip_if_not_installed("RSpectra")
+  X <- make_structured(300, 12, seed = 42)
+  m_base <- whiten_model(X, method = "PCA", n_comp = 4, lambda = 0.05, eig_method = "base")
+  m_rs   <- whiten_model(X, method = "PCA", n_comp = 4, lambda = 0.05, eig_method = "rspectra")
+  # cov(Z) is invariant to component sign, so compare whitening quality
+  expect_equal(check_whitening(predict(m_base, X))$cov_matrix,
+               check_whitening(predict(m_rs, X))$cov_matrix, tolerance = 1e-6)
+})
+
+test_that("supervised tuning (scoring='accuracy') runs and selects a valid model", {
+  set.seed(43)
+  n <- 120
+  y <- factor(rep(c("a", "b"), each = n / 2))
+  X <- rbind(
+    matrix(rnorm(n / 2 * 6, mean = 0), n / 2, 6),
+    matrix(rnorm(n / 2 * 6, mean = 1.2), n / 2, 6)
+  )
+  colnames(X) <- paste0("Ch", 1:6)
+  tuned <- auto_tune_whitening(X, y = y, methods = c("PCA", "ZCA"),
+                               n_comp_grid = c(3, 5), lambda_grid = list(0, 0.1),
+                               cv_folds = 4, seed = 1, scoring = "accuracy")
+  expect_s3_class(tuned$best_model, "whiten_model")
+  expect_true(all(tuned$ranking$mean_score >= 0 & tuned$ranking$mean_score <= 1))
+  # custom score_fn hook works
+  tuned2 <- auto_tune_whitening(X, y = y, methods = "ZCA", lambda_grid = list(0.1),
+                                cv_folds = 3, seed = 1, scoring = "accuracy",
+                                score_fn = function(Ztr, ytr, Zva, yva) {
+                                  mean(yva == ytr[1])  # trivial baseline scorer
+                                })
+  expect_true(is.finite(tuned2$ranking$mean_score[1]))
+})
+
+# ---- T2 API consistency: S3 classes, methods, deprecation shims ----
+
+test_that("recenter/whiten_relative/whiten_tune/ea_model are classed with methods", {
+  set.seed(50)
+  X <- make_structured(200, 6, seed = 50)
+  rc <- recenter(X)
+  expect_s3_class(rc, "recenter")
+  expect_output(print(rc), "<recenter>")
+  Xnew <- make_structured(40, 6, seed = 51)
+  expect_equal(dim(predict(rc, Xnew)), c(40, 6))
+
+  gr <- whiten_relative(cov(X), cov(make_structured(200, 6, seed = 52)))
+  expect_s3_class(gr, "relative_whiten")
+  expect_output(print(gr), "relative_whiten")
+  expect_equal(dim(predict(gr, Xnew)), c(40, 6))
+
+  tuned <- auto_tune_whitening(X, methods = c("PCA", "ZCA"), n_comp_grid = c(3),
+                               lambda_grid = list(0, 0.1), cv_folds = 3, seed = 1)
+  expect_s3_class(tuned, "whiten_tune")
+  expect_output(print(tuned), "<whiten_tune>")
+
+  ea <- euclidean_alignment(list(X, Xnew), input = "raw")
+  expect_output(print(ea$model), "<ea_model>")
+  expect_output(summary(ea$model), "ref cond")
+})
+
+test_that("deprecated argument order and names still work with a warning", {
+  set.seed(53)
+  X <- make_structured(150, 6, seed = 53)
+  m <- whiten_model(X, method = "ZCA", lambda = 0)
+  Z <- predict(m, X)
+  # old data-first order
+  expect_warning(rec_old <- unwhiten(Z, m), "deprecated")
+  rec_new <- unwhiten(m, Z)
+  expect_equal(rec_old, rec_new, tolerance = 1e-10)
+  expect_warning(unwhiten_fast(Z, m), "deprecated")
+
+  # old shrinkage name
+  Xt <- array(rnorm(10 * 6 * 80), dim = c(10, 6, 80))
+  expect_warning(epoch_covariances(Xt, shrinkage = 0.1), "deprecated")
+
+  # old predict recenter arg
+  expect_warning(predict(m, X, recenter = TRUE), "deprecated")
+
+  # inverse_ea old order
+  ea <- euclidean_alignment(list(X, make_structured(120, 6, seed = 54)), input = "raw")
+  Za <- predict(ea$model, X)
+  expect_warning(inverse_ea(Za, ea$model), "deprecated")
 })

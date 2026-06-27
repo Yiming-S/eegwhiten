@@ -343,6 +343,24 @@
     warning("Tyler covariance estimator did not converge within max_iter.")
   }
 
+  # Tyler's iteration estimates only the SHAPE (normalized to trace = d); it is
+  # scale-free, so whitening with it would not produce unit-variance data.
+  # Restore the scale with a robust, consistency-correcting factor: under an
+  # elliptical model x^T S_shape^{-1} x / sigma^2 ~ chi^2_d, so
+  # sigma^2 = median_i(x_i^T S_shape^{-1} x_i) / qchisq(0.5, d).
+  Sinv <- tryCatch(
+    chol2inv(chol(S)),
+    error = function(e) chol2inv(chol(S + eps * diag(d)))
+  )
+  q_scale <- rowSums((Xc %*% Sinv) * Xc)
+  q_scale <- q_scale[is.finite(q_scale) & q_scale > 0]
+  if (length(q_scale) > 0L) {
+    sigma2 <- stats::median(q_scale) / stats::qchisq(0.5, df = d)
+    if (is.finite(sigma2) && sigma2 > 0) {
+      S <- S * sigma2
+    }
+  }
+
   list(
     cov = S,
     mean = mu,
@@ -669,9 +687,14 @@
   }
 
   eig <- eigen(Sigma, symmetric = TRUE, only.values = TRUE)$values
-  if (require_pd && any(eig <= tol)) {
-    min_eig <- min(eig)
-    stop(sprintf("Sigma must be positive-definite. Min eigenvalue = %g. Try using lambda > 0 in whiten_model().", min_eig))
+  if (require_pd) {
+    # Scale-invariant positive-definiteness test: compare the smallest
+    # eigenvalue to the largest (a numerical-rank tolerance) rather than to an
+    # absolute floor, so a well-conditioned matrix at any magnitude is accepted.
+    max_eig <- max(eig)
+    if (!is.finite(max_eig) || max_eig <= 0 || min(eig) <= max_eig * 1e-14) {
+      stop(sprintf("Sigma must be positive-definite (min/max eigenvalue = %g / %g). Try using lambda > 0 in whiten_model().", min(eig), max_eig))
+    }
   }
   invisible(eig)
 }
@@ -742,6 +765,21 @@
 # Ensure matrix is numerically symmetric
 .symmetrize <- function(A) {
   (A + t(A)) / 2
+}
+
+# Resolve (model, data) arguments, accepting the deprecated (data, model) order.
+# The model is identified by its S3 class; a deprecation warning is emitted when
+# the old order is detected.
+.order_model_first <- function(a, b, model_class, fn) {
+  if (inherits(a, model_class)) {
+    return(list(model = a, data = b))
+  }
+  if (inherits(b, model_class)) {
+    warning(sprintf("%s(data, model) is deprecated; use %s(model, data).", fn, fn),
+            call. = FALSE)
+    return(list(model = b, data = a))
+  }
+  stop(sprintf("%s() requires a '%s' object.", fn, model_class))
 }
 
 # Matrix sqrt for SPD matrix

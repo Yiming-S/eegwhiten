@@ -52,7 +52,7 @@ reference.
 \examples{
 set.seed(1)
 X <- array(rnorm(30 * 6 * 64), dim = c(30, 6, 64))
-covs <- epoch_covariances(X, shrinkage = 0.05)
+covs <- epoch_covariances(X, lambda = 0.05)
 V <- tangent_space(covs, mean_method = "logeuclid")
 dim(V)
 
@@ -64,4 +64,9 @@ Transactions on Biomedical Engineering.
 }
 \seealso{
 \code{\link{untangent_space}}, \code{\link{epoch_covariances}}
+
+Other riemannian: 
+\code{\link{epoch_covariances}()},
+\code{\link{untangent_space}()}
 }
+\concept{riemannian}

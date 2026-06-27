@@ -4,12 +4,12 @@
 \alias{unwhiten_tensor}
 \title{Inverse transform a whitened 3D EEG tensor}
 \usage{
-unwhiten_tensor(Z_tensor, model)
+unwhiten_tensor(model, Z_tensor)
 }
 \arguments{
-\item{Z_tensor}{Numeric 3D array \code{[n_trials, n_components, n_time]}.}
-
 \item{model}{A \code{whiten_model} object.}
+
+\item{Z_tensor}{Numeric 3D array \code{[n_trials, n_components, n_time]}.}
 }
 \value{
 Reconstructed 3D array \code{[n_trials, n_channels, n_time]}.
@@ -17,15 +17,25 @@ Reconstructed 3D array \code{[n_trials, n_channels, n_time]}.
 \description{
 Inverse transform a whitened 3D EEG tensor
 }
+\details{
+The deprecated argument order \code{unwhiten_tensor(Z_tensor, model)}
+  is still accepted (with a warning) for backward compatibility.
+}
 \examples{
 set.seed(1)
 X_t <- array(rnorm(20 * 6 * 40), dim = c(20, 6, 40))
 m <- whiten_model_tensor(X_t, method = "ZCA", lambda = 0)
 Z_t <- predict_tensor(m, X_t)
-X_rec <- unwhiten_tensor(Z_t, m)
+X_rec <- unwhiten_tensor(m, Z_t)
 
 }
 \seealso{
 \code{\link{whiten_model_tensor}}, \code{\link{predict_tensor}},
   \code{\link{unwhiten}}
+
+Other inverse transforms: 
+\code{\link{inverse_ea}()},
+\code{\link{unwhiten}()},
+\code{\link{unwhiten_fast}()}
 }
+\concept{inverse transforms}

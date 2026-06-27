@@ -1,0 +1,82 @@
+url: https://yiming-s.github.io/eegwhiten/
+
+template:
+  bootstrap: 5
+
+reference:
+- title: Whitening models & transforms
+  desc: Fit a whitening model, apply it, and invert it.
+  contents:
+  - whiten_model
+  - whiten_fit
+  - whiten_matrix
+  - predict.whiten_model
+  - unwhiten
+  - unwhiten_fast
+  - whitening_patterns
+
+- title: Whitening methods
+  desc: Low-level whitening transforms on a covariance matrix.
+  contents:
+  - PCA
+  - PCA_cor
+  - ZCA
+  - ZCA_cor
+  - SVD
+  - Cholesky
+
+- title: Tuning & reporting
+  contents:
+  - auto_tune_whitening
+  - report_whitening
+
+- title: Diagnostics
+  contents:
+  - check_whitening
+  - check_condition
+
+- title: Online & batch
+  contents:
+  - whiten_model_update
+  - whiten_batch
+
+- title: Tensor data
+  desc: Whitening for trial x channel x time arrays.
+  contents:
+  - whiten_model_tensor
+  - predict_tensor
+  - unwhiten_tensor
+
+- title: Alignment & transfer learning
+  desc: Cross-session / cross-subject covariance alignment.
+  contents:
+  - euclidean_alignment
+  - recenter
+  - predict.ea_model
+  - inverse_ea
+  - whiten_relative
+
+- title: Riemannian geometry
+  desc: Tangent-space mapping for SPD covariance matrices.
+  contents:
+  - epoch_covariances
+  - tangent_space
+  - untangent_space
+
+- title: S3 methods
+  contents:
+  - print.whiten_model
+  - summary.whiten_model
+  - plot.whiten_model
+  - print.summary.whiten_model
+  - print.whiten_tune
+  - print.recenter
+  - predict.recenter
+  - print.relative_whiten
+  - predict.relative_whiten
+  - print.ea_model
+  - summary.ea_model
+
+- title: Package
+  contents:
+  - eegwhiten-package

@@ -32,4 +32,9 @@ max(abs(covs_rec[[1]] - covs[[1]]))
 }
 \seealso{
 \code{\link{tangent_space}}
+
+Other riemannian: 
+\code{\link{epoch_covariances}()},
+\code{\link{tangent_space}()}
 }
+\concept{riemannian}

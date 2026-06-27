@@ -1,7 +1,7 @@
 Package: eegwhiten
 Type: Package
 Title: Whitening Transforms for EEG Covariance Matrices
-Version: 0.3.0
+Version: 0.4.0
 Authors@R: person("Yiming", "Shen", email = "yiming.shen001@umb.edu",
     role = c("aut", "cre"))
 Description:
@@ -12,7 +12,7 @@ Description:
     whitening parameters across datasets, inverse transforms, and
     basic diagnostics.
 License: MIT + file LICENSE
-URL: https://github.com/Yiming-S/eegwhiten
+URL: https://github.com/Yiming-S/eegwhiten, https://yiming-s.github.io/eegwhiten/
 BugReports: https://github.com/Yiming-S/eegwhiten/issues
 Encoding: UTF-8
 Depends: R (>= 3.6.0)

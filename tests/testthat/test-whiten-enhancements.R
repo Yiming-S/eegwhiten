@@ -5,14 +5,14 @@ test_that("unwhiten works for full and reduced whitening models", {
 
   m_full <- whiten_model(X, method = "ZCA", lambda = 0)
   Z_full <- predict(m_full, X)
-  X_full_rec <- unwhiten(Z_full, m_full)
+  X_full_rec <- unwhiten(m_full, Z_full)
 
   expect_equal(dim(X_full_rec), dim(X))
   expect_lt(mean((X_full_rec - X) ^ 2), 1e-20)
 
   m_red <- whiten_model(X, method = "PCA", n_comp = 4, lambda = 0.1)
   Z_red <- predict(m_red, X)
-  X_red_rec <- unwhiten(Z_red, m_red)
+  X_red_rec <- unwhiten(m_red, Z_red)
 
   expect_equal(dim(X_red_rec), dim(X))
   expect_true(all(is.finite(X_red_rec)))
@@ -29,8 +29,8 @@ test_that("unwhiten_fast matches unwhiten", {
   m <- whiten_model(X, method = "PCA", n_comp = 5, lambda = 0.1)
   Z <- predict(m, X)
 
-  x_fast <- unwhiten_fast(Z, m)
-  x_std <- unwhiten(Z, m)
+  x_fast <- unwhiten_fast(m, Z)
+  x_std <- unwhiten(m, Z)
 
   expect_equal(x_fast, x_std, tolerance = 1e-10)
 })
@@ -159,7 +159,7 @@ test_that("tensor wrappers work end-to-end", {
 
   m <- whiten_model_tensor(X_tensor, method = "ZCA", lambda = 0)
   Z_tensor <- predict_tensor(m, X_tensor)
-  X_rec <- unwhiten_tensor(Z_tensor, m)
+  X_rec <- unwhiten_tensor(m, Z_tensor)
 
   expect_equal(dim(Z_tensor), c(18, m$dim_out, 40))
   expect_equal(dim(X_rec), dim(X_tensor))
@@ -396,7 +396,7 @@ test_that("ea_model predict and inverse are consistent", {
 
   ea <- euclidean_alignment(list(X1, X2), input = "raw", center = TRUE)
   Z1 <- predict(ea$model, X1)
-  X1_rec <- inverse_ea(Z1, ea$model)
+  X1_rec <- inverse_ea(ea$model, Z1)
   X1_centered <- sweep(X1, 2, colMeans(X1), "-")
 
   expect_equal(dim(Z1), dim(X1))
@@ -406,7 +406,7 @@ test_that("ea_model predict and inverse are consistent", {
   C <- cov(X1)
   ea_cov <- euclidean_alignment(list(C, C * 1.2), input = "cov")
   C_aligned <- predict(ea_cov$model, C)
-  C_rec <- inverse_ea(C_aligned, ea_cov$model)
+  C_rec <- inverse_ea(ea_cov$model, C_aligned)
   expect_equal(C_rec, C, tolerance = 1e-8)
 })
 

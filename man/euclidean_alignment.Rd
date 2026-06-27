@@ -66,4 +66,9 @@ Engineering.
 \seealso{
 \code{\link{predict.ea_model}}, \code{\link{inverse_ea}},
   \code{\link{whiten_batch}} with \code{mode = "ea"}.
+
+Other alignment: 
+\code{\link{recenter}()},
+\code{\link{whiten_relative}()}
 }
+\concept{alignment}

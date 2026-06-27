@@ -12,6 +12,7 @@ Whitening transforms (PCA, PCA on the correlation matrix, ZCA, ZCA on the correl
 Useful links:
 \itemize{
   \item \url{https://github.com/Yiming-S/eegwhiten}
+  \item \url{https://yiming-s.github.io/eegwhiten/}
   \item Report bugs at \url{https://github.com/Yiming-S/eegwhiten/issues}
 }
 

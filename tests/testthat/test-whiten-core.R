@@ -128,13 +128,13 @@ test_that("unwhiten recovers original data for full-rank method", {
   X <- matrix(rnorm(200 * 6), 200, 6)
   m <- whiten_model(X, method = "ZCA", lambda = 0)
   Z <- predict(m, X)
-  X_rec <- unwhiten(Z, m)
+  X_rec <- unwhiten(m, Z)
   expect_lt(mean((X_rec - X)^2), 1e-20)
 })
 
 test_that("unwhiten errors on non-whiten_model", {
   Z <- matrix(1:4, 2, 2)
-  expect_error(unwhiten(Z, list()), "must be a 'whiten_model'")
+  expect_error(unwhiten(Z, list()), "whiten_model")
 })
 
 test_that("check_whitening returns correct structure", {

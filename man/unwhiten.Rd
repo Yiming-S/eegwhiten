@@ -4,12 +4,12 @@
 \alias{unwhiten}
 \title{Inverse transform from whitened space back to original EEG space}
 \usage{
-unwhiten(Z, model)
+unwhiten(model, Z)
 }
 \arguments{
-\item{Z}{Whitened data matrix.}
-
 \item{model}{A \code{whiten_model} object.}
+
+\item{Z}{Whitened data matrix.}
 }
 \value{
 Approximate reconstruction of the original data matrix.
@@ -17,15 +17,25 @@ Approximate reconstruction of the original data matrix.
 \description{
 Inverse transform from whitened space back to original EEG space
 }
+\details{
+The deprecated argument order \code{unwhiten(Z, model)} is still
+  accepted (with a warning) for backward compatibility.
+}
 \examples{
 set.seed(1)
 X <- matrix(rnorm(200 * 6), 200, 6)
 m <- whiten_model(X, method = "ZCA", lambda = 0)
 Z <- predict(m, X)
-X_rec <- unwhiten(Z, m)
+X_rec <- unwhiten(m, Z)
 max(abs(X_rec - X))
 
 }
 \seealso{
 \code{\link{unwhiten_fast}}, \code{\link{predict.whiten_model}}
+
+Other inverse transforms: 
+\code{\link{inverse_ea}()},
+\code{\link{unwhiten_fast}()},
+\code{\link{unwhiten_tensor}()}
 }
+\concept{inverse transforms}

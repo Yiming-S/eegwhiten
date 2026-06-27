@@ -4,26 +4,28 @@
 \alias{epoch_covariances}
 \title{Per-epoch channel covariance matrices from an EEG tensor}
 \usage{
-epoch_covariances(X_tensor, shrinkage = 0, center = TRUE)
+epoch_covariances(X_tensor, lambda = 0, center = TRUE, shrinkage = NULL)
 }
 \arguments{
 \item{X_tensor}{Numeric 3D array \code{[n_trials, n_channels, n_time]}.}
 
-\item{shrinkage}{Numeric in \code{[0, 1]}; optional shrinkage of each
-covariance toward a scaled identity (\code{(1 - s) C + s (tr(C)/p) I}).
+\item{lambda}{Numeric in \code{[0, 1]}; optional shrinkage of each
+covariance toward a scaled identity (\code{(1 - lambda) C + lambda (tr(C)/p) I}).
 Useful when the number of time samples is small relative to the number of
 channels. Defaults to 0 (no shrinkage). When \code{n_time <= n_channels},
 covariances are rank-deficient (not positive-definite) unless
-\code{shrinkage > 0}; a warning is emitted in that case.}
+\code{lambda > 0}; a warning is emitted in that case.}
 
 \item{center}{Logical; whether to subtract each channel's mean over time
 before computing the covariance.}
+
+\item{shrinkage}{Deprecated; use \code{lambda}.}
 }
 \value{
 A list of \code{[n_channels x n_channels]} covariance matrices,
   one per trial. They are positive-definite (suitable as
   \code{\link{tangent_space}} input) only when \code{n_time > n_channels} or
-  \code{shrinkage > 0}.
+  \code{lambda > 0}.
 }
 \description{
 Computes one channel-by-channel covariance matrix per trial/epoch from a
@@ -34,10 +36,15 @@ recentering.
 \examples{
 set.seed(1)
 X <- array(rnorm(20 * 8 * 64), dim = c(20, 8, 64))
-covs <- epoch_covariances(X, shrinkage = 0.05)
+covs <- epoch_covariances(X, lambda = 0.05)
 length(covs)
 
 }
 \seealso{
 \code{\link{tangent_space}}, \code{\link{recenter}}
+
+Other riemannian: 
+\code{\link{tangent_space}()},
+\code{\link{untangent_space}()}
 }
+\concept{riemannian}

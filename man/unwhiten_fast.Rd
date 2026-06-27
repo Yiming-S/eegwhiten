@@ -4,12 +4,12 @@
 \alias{unwhiten_fast}
 \title{Optimized inverse transform from whitened space}
 \usage{
-unwhiten_fast(Z, model)
+unwhiten_fast(model, Z)
 }
 \arguments{
-\item{Z}{Whitened data matrix.}
-
 \item{model}{A \code{whiten_model} object.}
+
+\item{Z}{Whitened data matrix.}
 }
 \value{
 Approximate reconstruction of the original data matrix.
@@ -17,14 +17,24 @@ Approximate reconstruction of the original data matrix.
 \description{
 Uses cached decomposition terms from \code{whiten_model} when available.
 }
+\details{
+The deprecated argument order \code{unwhiten_fast(Z, model)} is still
+  accepted (with a warning) for backward compatibility.
+}
 \examples{
 set.seed(1)
 X <- matrix(rnorm(200 * 6), 200, 6)
 m <- whiten_model(X, method = "PCA", n_comp = 4, lambda = 0.1)
 Z <- predict(m, X)
-X_rec <- unwhiten_fast(Z, m)
+X_rec <- unwhiten_fast(m, Z)
 
 }
 \seealso{
 \code{\link{unwhiten}}, \code{\link{predict.whiten_model}}
+
+Other inverse transforms: 
+\code{\link{inverse_ea}()},
+\code{\link{unwhiten}()},
+\code{\link{unwhiten_tensor}()}
 }
+\concept{inverse transforms}

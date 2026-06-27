@@ -1,0 +1,10 @@
+citHeader("To cite eegwhiten in publications, please use:")
+
+bibentry(
+  bibtype = "Manual",
+  title   = "{eegwhiten}: Whitening Transforms for EEG Covariance Matrices",
+  author  = person("Yiming", "Shen"),
+  year    = "2026",
+  note    = "R package version 0.4.0",
+  url     = "https://github.com/Yiming-S/eegwhiten"
+)

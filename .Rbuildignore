@@ -4,3 +4,13 @@
 ^inst/bench$
 ^tests/test-report\.md$
 ^tests/generate-test-report\.R$
+^.*\.Rcheck$
+^.*\.tar\.gz$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^cran-comments\.md$
+^CONTRIBUTING\.md$
+^CODE_OF_CONDUCT\.md$
+^\.git$
+^LICENSE\.md$

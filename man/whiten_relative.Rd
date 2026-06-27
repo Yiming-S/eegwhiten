@@ -57,4 +57,9 @@ IEEE Signal Processing Magazine.
 }
 \seealso{
 \code{\link{whiten_model}}, \code{\link{euclidean_alignment}}
+
+Other alignment: 
+\code{\link{euclidean_alignment}()},
+\code{\link{recenter}()}
 }
+\concept{alignment}

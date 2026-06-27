@@ -1,5 +1,12 @@
 # eegwhiten
 
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/Yiming-S/eegwhiten/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/Yiming-S/eegwhiten/actions/workflows/R-CMD-check.yml)
+[![Codecov test coverage](https://codecov.io/gh/Yiming-S/eegwhiten/graph/badge.svg)](https://app.codecov.io/gh/Yiming-S/eegwhiten)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<!-- badges: end -->
+
 Whitening transforms for EEG and multichannel signals using a model-based API.
 
 `eegwhiten` provides covariance whitening methods with a train/apply workflow:
@@ -18,7 +25,7 @@ Whitening transforms for EEG and multichannel signals using a model-based API.
 - Robust covariance estimation: `empirical`, `tyler`, `mcd` (requires `robustbase`)
 - Incremental updates with optional exponential forgetting: `whiten_model_update(..., decay)`
 - Batch modes: independent, shared model, EA alignment, and per-domain `recenter`
-- Cross-session helpers: `recenter()`, and `predict(..., recenter = TRUE)`
+- Cross-session helpers: `recenter()`, and `predict(..., self_center = TRUE)`
 - Riemannian pipeline: `epoch_covariances()`, `tangent_space()`, `untangent_space()`
 - Relative / generalized-eigenvalue whitening (CSP/xDAWN-style): `whiten_relative()`
 - Spatial filters and forward patterns: `whitening_patterns()`
@@ -67,7 +74,7 @@ diag <- check_whitening(Z_test)
 diag$diag_mean
 
 # Inverse transform (approximate if reduced)
-X_test_rec <- unwhiten(Z_test, m)
+X_test_rec <- unwhiten(m, Z_test)
 ```
 
 ## Core APIs
@@ -161,7 +168,7 @@ out_ea <- whiten_batch(X_list, mode = "ea", ea_mean = "logeuclid")
 ```r
 ea <- euclidean_alignment(X_list, input = "raw", mean_method = "logeuclid")
 Z1 <- predict(ea$model, X_list[[1]])
-X1_back <- inverse_ea(Z1, ea$model)
+X1_back <- inverse_ea(ea$model, Z1)
 ```
 
 ### Cross-session recentering (per-domain alignment)
@@ -185,7 +192,7 @@ rc <- recenter(X_list[[1]])
 
 # At predict time, center test data on its own mean (drift-robust)
 m <- whiten_model(X_list[[1]], method = "ZCA", lambda = 0.1)
-Z_test <- predict(m, X_list[[2]], recenter = TRUE)
+Z_test <- predict(m, X_list[[2]], self_center = TRUE)
 ```
 
 ### Riemannian tangent space
@@ -196,7 +203,7 @@ pipeline.
 
 ```r
 X_tensor <- array(rnorm(40 * 8 * 128), dim = c(40, 8, 128))
-covs <- epoch_covariances(X_tensor, shrinkage = 0.05)
+covs <- epoch_covariances(X_tensor, lambda = 0.05)
 V <- tangent_space(covs, mean_method = "riemann")  # [40 x p(p+1)/2]
 covs_rec <- untangent_space(V)                     # inverse map
 ```
@@ -233,7 +240,7 @@ X_tensor <- array(rnorm(20 * 8 * 100), dim = c(20, 8, 100))
 
 m_t <- whiten_model_tensor(X_tensor, method = "ZCA", lambda = 0)
 Z_tensor <- predict_tensor(m_t, X_tensor)
-X_tensor_rec <- unwhiten_tensor(Z_tensor, m_t)
+X_tensor_rec <- unwhiten_tensor(m_t, Z_tensor)
 ```
 
 ## Reporting

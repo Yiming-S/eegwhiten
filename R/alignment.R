@@ -30,6 +30,7 @@
 #'   \item{mean_method}{Mean method used.}
 #'   \item{model}{Alignment model object (class \code{"ea_model"}).}
 #'
+#' @family alignment
 #' @seealso \code{\link{predict.ea_model}}, \code{\link{inverse_ea}},
 #'   \code{\link{whiten_batch}} with \code{mode = "ea"}.
 #'
@@ -184,6 +185,7 @@ euclidean_alignment <- function(X_list,
 #' A Euclidean space data alignment approach. IEEE Transactions on Biomedical
 #' Engineering.
 #'
+#' @family alignment
 #' @seealso \code{\link{euclidean_alignment}}, \code{\link{whiten_batch}} with
 #'   \code{mode = "recenter"}.
 #'
@@ -235,7 +237,80 @@ recenter <- function(X, reference = NULL, center = TRUE, lambda = 0, eps = 1e-10
   Z <- Xc %*% W
   if (!is.null(colnames(X))) colnames(Z) <- colnames(X)
 
-  list(Z = Z, W = W, reference_cov = C, center = mu)
+  structure(
+    list(Z = Z, W = W, reference_cov = C, center = mu),
+    class = "recenter"
+  )
+}
+
+#' Print a recentering model
+#'
+#' @param x A \code{recenter} object.
+#' @param ... Unused.
+#' @return The input object invisibly.
+#' @export
+#' @method print recenter
+print.recenter <- function(x, ...) {
+  cat("<recenter>\n")
+  cat("  channels   :", ncol(x$W), "\n")
+  cat("  samples    :", nrow(x$Z), "\n")
+  cat("  centered   :", any(x$center != 0), "\n")
+  invisible(x)
+}
+
+#' Apply a recentering model to new data
+#'
+#' @param object A \code{recenter} object.
+#' @param newdata Numeric matrix with the same number of channels.
+#' @param ... Unused.
+#' @return Recentered data matrix.
+#' @export
+#' @method predict recenter
+predict.recenter <- function(object, newdata, ...) {
+  if (!inherits(object, "recenter")) stop("object must be a 'recenter' object.")
+  if (!is.matrix(newdata) || !is.numeric(newdata) || any(!is.finite(newdata))) {
+    stop("newdata must be a finite numeric matrix.")
+  }
+  p <- ncol(object$W)
+  if (ncol(newdata) != p) {
+    stop(sprintf("Mismatch: model expects %d channels, but newdata has %d.", p, ncol(newdata)))
+  }
+  Xc <- .center_cols(newdata, object$center)
+  Z <- Xc %*% object$W
+  if (!is.null(colnames(newdata))) colnames(Z) <- colnames(newdata)
+  Z
+}
+
+#' Print an EA model
+#'
+#' @param x An \code{ea_model} object.
+#' @param ... Unused.
+#' @return The input object invisibly.
+#' @export
+#' @method print ea_model
+print.ea_model <- function(x, ...) {
+  cat("<ea_model>\n")
+  cat("  channels   :", ncol(x$W), "\n")
+  cat("  input_type :", x$input_type, "\n")
+  cat("  mean_method:", x$mean_method, "\n")
+  cat("  centered   :", isTRUE(x$center), "\n")
+  invisible(x)
+}
+
+#' Summarize an EA model
+#'
+#' @param object An \code{ea_model} object.
+#' @param ... Unused.
+#' @return The input object invisibly (prints reference-covariance conditioning).
+#' @export
+#' @method summary ea_model
+summary.ea_model <- function(object, ...) {
+  print(object)
+  ev <- eigen(object$reference_cov, symmetric = TRUE, only.values = TRUE)$values
+  ev <- ev[ev > 0]
+  cond <- if (length(ev)) max(ev) / min(ev) else Inf
+  cat("  ref cond   :", signif(cond, 4), "\n")
+  invisible(object)
 }
 
 #' Apply an EA Model to New Data
@@ -294,12 +369,16 @@ predict.ea_model <- function(object, newdata, ...) {
 
 #' Inverse Transform for EA-Aligned Data
 #'
-#' @param Z An aligned matrix (or list of aligned matrices).
 #' @param model An \code{ea_model} object.
+#' @param Z An aligned matrix (or list of aligned matrices).
 #' @param center Optional center vector added back for raw-data inverse mode.
 #'
 #' @return Matrix (or list of matrices) mapped back from EA-aligned space.
 #'
+#' @details The deprecated argument order \code{inverse_ea(Z, model)} is still
+#'   accepted (with a warning) for backward compatibility.
+#'
+#' @family inverse transforms
 #' @seealso \code{\link{euclidean_alignment}}, \code{\link{predict.ea_model}}
 #'
 #' @examples
@@ -308,13 +387,13 @@ predict.ea_model <- function(object, newdata, ...) {
 #' X2 <- matrix(rnorm(180 * 5), 180, 5)
 #' ea <- euclidean_alignment(list(X1, X2), input = "raw", center = TRUE)
 #' Z1 <- predict(ea$model, X1)
-#' X1_rec <- inverse_ea(Z1, ea$model)
+#' X1_rec <- inverse_ea(ea$model, Z1)
 #'
 #' @export
-inverse_ea <- function(Z, model, center = NULL) {
-  if (!inherits(model, "ea_model")) {
-    stop("model must be an 'ea_model' object.")
-  }
+inverse_ea <- function(model, Z, center = NULL) {
+  io <- .order_model_first(model, Z, "ea_model", "inverse_ea")
+  model <- io$model
+  Z <- io$data
 
   A <- .sqrtm_spd(model$reference_cov, eps = model$eps)
 

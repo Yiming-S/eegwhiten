@@ -154,14 +154,14 @@ test_that("unwhiten rejects dimension mismatch", {
   X <- matrix(rnorm(100), 20, 5)
   m <- whiten_model(X, method = "PCA", n_comp = 3, lambda = 0.1)
   Z_bad <- matrix(rnorm(40), 20, 2)
-  expect_error(unwhiten(Z_bad, m), "Mismatch")
+  expect_error(unwhiten(m, Z_bad), "Mismatch")
 })
 
 test_that("unwhiten_fast rejects dimension mismatch", {
   X <- matrix(rnorm(100), 20, 5)
   m <- whiten_model(X, method = "PCA", n_comp = 3, lambda = 0.1)
   Z_bad <- matrix(rnorm(40), 20, 2)
-  expect_error(unwhiten_fast(Z_bad, m), "Mismatch")
+  expect_error(unwhiten_fast(m, Z_bad), "Mismatch")
 })
 
 # --- check_whitening validation ---

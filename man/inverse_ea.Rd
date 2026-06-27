@@ -4,12 +4,12 @@
 \alias{inverse_ea}
 \title{Inverse Transform for EA-Aligned Data}
 \usage{
-inverse_ea(Z, model, center = NULL)
+inverse_ea(model, Z, center = NULL)
 }
 \arguments{
-\item{Z}{An aligned matrix (or list of aligned matrices).}
-
 \item{model}{An \code{ea_model} object.}
+
+\item{Z}{An aligned matrix (or list of aligned matrices).}
 
 \item{center}{Optional center vector added back for raw-data inverse mode.}
 }
@@ -19,15 +19,25 @@ Matrix (or list of matrices) mapped back from EA-aligned space.
 \description{
 Inverse Transform for EA-Aligned Data
 }
+\details{
+The deprecated argument order \code{inverse_ea(Z, model)} is still
+  accepted (with a warning) for backward compatibility.
+}
 \examples{
 set.seed(1)
 X1 <- matrix(rnorm(200 * 5), 200, 5)
 X2 <- matrix(rnorm(180 * 5), 180, 5)
 ea <- euclidean_alignment(list(X1, X2), input = "raw", center = TRUE)
 Z1 <- predict(ea$model, X1)
-X1_rec <- inverse_ea(Z1, ea$model)
+X1_rec <- inverse_ea(ea$model, Z1)
 
 }
 \seealso{
 \code{\link{euclidean_alignment}}, \code{\link{predict.ea_model}}
+
+Other inverse transforms: 
+\code{\link{unwhiten}()},
+\code{\link{unwhiten_fast}()},
+\code{\link{unwhiten_tensor}()}
 }
+\concept{inverse transforms}

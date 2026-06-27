@@ -353,16 +353,23 @@ whiten_model <- function(X, center = TRUE,
     .check_symmetric_pd(S, require_pd = FALSE, return_eigen = FALSE)
     precomp_eig <- .eigen_spd(S, k = d, method = eig_method, fast = fast)
     eig_shrunk <- precomp_eig$values
-    if (any(eig_shrunk <= 1e-8)) {
-      stop(sprintf("Sample covariance must be positive-definite. Min eigenvalue = %g. Try lambda='auto' or lambda > 0.", min(eig_shrunk)))
+    # Scale-invariant positive-definiteness test (relative to the largest
+    # eigenvalue) so well-conditioned data at any magnitude (e.g. EEG in volts)
+    # is not falsely rejected.
+    max_eig <- max(eig_shrunk)
+    if (!is.finite(max_eig) || max_eig <= 0 || min(eig_shrunk) <= max_eig * 1e-14) {
+      stop(sprintf("Sample covariance must be positive-definite (min/max eigenvalue = %g / %g). Try lambda='auto' or lambda > 0.", min(eig_shrunk), max_eig))
     }
-    cond_raw <- max(eig_shrunk) / min(pmax(eig_shrunk, .Machine$double.eps))
+    cond_raw <- max_eig / min(pmax(eig_shrunk, .Machine$double.eps))
   } else {
-    eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE, return_eigen = need_full_eigs)
+    # For correlation-based methods, check positive-definiteness on the
+    # (scale-invariant) correlation matrix rather than the covariance.
+    S_check <- if (method %in% c("PCA-cor", "ZCA-cor")) stats::cov2cor(S) else S
+    eig_shrunk <- .check_symmetric_pd(S_check, require_pd = TRUE, return_eigen = need_full_eigs)
     cond_raw <- if (need_full_eigs) {
       max(eig_shrunk) / min(pmax(eig_shrunk, .Machine$double.eps))
     } else {
-      tryCatch(1 / rcond(S), error = function(e) NA_real_)
+      tryCatch(1 / rcond(S_check), error = function(e) NA_real_)
     }
   }
   if (lambda == 0 && is.finite(cond_raw) && cond_raw > 1e8) {
@@ -465,12 +472,13 @@ whiten_model <- function(X, center = TRUE,
 #' @param object A \code{whiten_model} object.
 #' @param newdata Numeric matrix with the same number of columns
 #'   as the data used to fit the model.
-#' @param recenter Logical; if \code{TRUE}, center \code{newdata} by its own
+#' @param self_center Logical; if \code{TRUE}, center \code{newdata} by its own
 #'   column means instead of the stored training mean. This is useful for
 #'   cross-session / cross-subject transfer where the test data has shifted
 #'   relative to the training distribution. Ignored when the model was fitted
 #'   with \code{center = FALSE}.
 #' @param ... Unused.
+#' @param recenter Deprecated; use \code{self_center}.
 #'
 #' @return Whitened data matrix (possibly with reduced dimensions).
 #'
@@ -485,13 +493,17 @@ whiten_model <- function(X, center = TRUE,
 #'
 #' @export
 #' @method predict whiten_model
-predict.whiten_model <- function(object, newdata, recenter = FALSE, ...) {
+predict.whiten_model <- function(object, newdata, self_center = FALSE, ..., recenter = NULL) {
   if (!inherits(object, "whiten_model")) stop("object must be a 'whiten_model'.")
+  if (!is.null(recenter)) {
+    warning("The 'recenter' argument is deprecated; use 'self_center'.", call. = FALSE)
+    self_center <- recenter
+  }
   if (!is.matrix(newdata)) stop("newdata must be a matrix.")
   if (!is.numeric(newdata)) stop("newdata must be a numeric matrix.")
   if (any(!is.finite(newdata))) stop("newdata must contain only finite values.")
-  if (!is.logical(recenter) || length(recenter) != 1L || is.na(recenter)) {
-    stop("recenter must be TRUE or FALSE.")
+  if (!is.logical(self_center) || length(self_center) != 1L || is.na(self_center)) {
+    stop("self_center must be TRUE or FALSE.")
   }
 
   d <- length(object$center)
@@ -500,9 +512,9 @@ predict.whiten_model <- function(object, newdata, recenter = FALSE, ...) {
   }
 
   # Center using stored mean (skip if centering was disabled).
-  # recenter = TRUE uses the new data's own column means instead.
+  # self_center = TRUE uses the new data's own column means instead.
   Xc <- if (isTRUE(object$center_enabled)) {
-    mu <- if (recenter) colMeans(newdata) else object$center
+    mu <- if (self_center) colMeans(newdata) else object$center
     .center_cols(newdata, mu)
   } else {
     newdata
@@ -526,11 +538,15 @@ predict.whiten_model <- function(object, newdata, recenter = FALSE, ...) {
 
 #' Inverse transform from whitened space back to original EEG space
 #'
-#' @param Z Whitened data matrix.
 #' @param model A \code{whiten_model} object.
+#' @param Z Whitened data matrix.
 #'
 #' @return Approximate reconstruction of the original data matrix.
 #'
+#' @details The deprecated argument order \code{unwhiten(Z, model)} is still
+#'   accepted (with a warning) for backward compatibility.
+#'
+#' @family inverse transforms
 #' @seealso \code{\link{unwhiten_fast}}, \code{\link{predict.whiten_model}}
 #'
 #' @examples
@@ -538,14 +554,14 @@ predict.whiten_model <- function(object, newdata, recenter = FALSE, ...) {
 #' X <- matrix(rnorm(200 * 6), 200, 6)
 #' m <- whiten_model(X, method = "ZCA", lambda = 0)
 #' Z <- predict(m, X)
-#' X_rec <- unwhiten(Z, m)
+#' X_rec <- unwhiten(m, Z)
 #' max(abs(X_rec - X))
 #'
 #' @export
-unwhiten <- function(Z, model) {
-  if (!inherits(model, "whiten_model")) {
-    stop("model must be a 'whiten_model' object.")
-  }
+unwhiten <- function(model, Z) {
+  io <- .order_model_first(model, Z, "whiten_model", "unwhiten")
+  model <- io$model
+  Z <- io$data
   if (!is.matrix(Z)) stop("Z must be a matrix.")
   if (!is.numeric(Z)) stop("Z must be a numeric matrix.")
   if (any(!is.finite(Z))) stop("Z must contain only finite values.")
@@ -582,11 +598,15 @@ unwhiten <- function(Z, model) {
 #'
 #' Uses cached decomposition terms from \code{whiten_model} when available.
 #'
-#' @param Z Whitened data matrix.
 #' @param model A \code{whiten_model} object.
+#' @param Z Whitened data matrix.
 #'
 #' @return Approximate reconstruction of the original data matrix.
 #'
+#' @details The deprecated argument order \code{unwhiten_fast(Z, model)} is still
+#'   accepted (with a warning) for backward compatibility.
+#'
+#' @family inverse transforms
 #' @seealso \code{\link{unwhiten}}, \code{\link{predict.whiten_model}}
 #'
 #' @examples
@@ -594,13 +614,13 @@ unwhiten <- function(Z, model) {
 #' X <- matrix(rnorm(200 * 6), 200, 6)
 #' m <- whiten_model(X, method = "PCA", n_comp = 4, lambda = 0.1)
 #' Z <- predict(m, X)
-#' X_rec <- unwhiten_fast(Z, m)
+#' X_rec <- unwhiten_fast(m, Z)
 #'
 #' @export
-unwhiten_fast <- function(Z, model) {
-  if (!inherits(model, "whiten_model")) {
-    stop("model must be a 'whiten_model' object.")
-  }
+unwhiten_fast <- function(model, Z) {
+  io <- .order_model_first(model, Z, "whiten_model", "unwhiten_fast")
+  model <- io$model
+  Z <- io$data
   if (!is.matrix(Z)) stop("Z must be a matrix.")
   if (!is.numeric(Z)) stop("Z must be a numeric matrix.")
   if (any(!is.finite(Z))) stop("Z must contain only finite values.")
@@ -617,7 +637,7 @@ unwhiten_fast <- function(Z, model) {
     return(X)
   }
 
-  unwhiten(Z, model)
+  unwhiten(model, Z)
 }
 
 #' Diagnostic check for whitening quality

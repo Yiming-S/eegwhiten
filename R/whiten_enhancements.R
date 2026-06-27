@@ -120,11 +120,13 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL, decay = 1) {
     .check_symmetric_pd(S, require_pd = FALSE, return_eigen = FALSE)
     precomp_eig <- .eigen_spd(S, k = d, method = eig_method, fast = fast)
     eig_shrunk <- precomp_eig$values
-    if (any(eig_shrunk <= 1e-8)) {
-      stop(sprintf("Updated covariance must be positive-definite. Min eigenvalue = %g. Increase lambda.", min(eig_shrunk)))
+    max_eig <- max(eig_shrunk)
+    if (!is.finite(max_eig) || max_eig <= 0 || min(eig_shrunk) <= max_eig * 1e-14) {
+      stop(sprintf("Updated covariance must be positive-definite (min/max eigenvalue = %g / %g). Increase lambda.", min(eig_shrunk), max_eig))
     }
   } else {
-    eig_shrunk <- .check_symmetric_pd(S, require_pd = TRUE, return_eigen = need_full_eigs)
+    S_check <- if (method %in% c("PCA-cor", "ZCA-cor")) stats::cov2cor(S) else S
+    eig_shrunk <- .check_symmetric_pd(S_check, require_pd = TRUE, return_eigen = need_full_eigs)
   }
   attr(S, ".checked_spd") <- TRUE
 
@@ -715,6 +717,30 @@ auto_tune_whitening <- function(X,
   )
   class(out) <- "whiten_tune"
   out
+}
+
+#' Print a whitening tuning result
+#'
+#' @param x A \code{whiten_tune} object from \code{\link{auto_tune_whitening}}.
+#' @param ... Unused.
+#' @return The input object invisibly.
+#' @export
+#' @method print whiten_tune
+print.whiten_tune <- function(x, ...) {
+  bp <- x$best_params
+  cat("<whiten_tune>\n")
+  cat("  scoring     :", x$scoring, "\n")
+  cat("  cv_folds    :", x$cv_folds, "\n")
+  cat("  best method :", bp$method, "\n")
+  cat("  best n_comp :", if (is.null(bp$n_comp)) "NA" else bp$n_comp, "\n")
+  cat("  best lambda :", .lambda_to_label(bp$lambda), "\n")
+  cat("  best cov_est:", bp$cov_estimator, "\n")
+  if (!is.null(x$ranking) && nrow(x$ranking) > 0L) {
+    n_show <- min(5L, nrow(x$ranking))
+    cat("  top", n_show, "configurations:\n")
+    print(x$ranking[seq_len(n_show), , drop = FALSE], row.names = FALSE)
+  }
+  invisible(x)
 }
 
 #' One-Click Whitening Report
