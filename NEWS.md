@@ -1,3 +1,15 @@
+# eegwhiten 0.4.1
+
+* `predict()` now works directly on an `auto_tune_whitening()` result, applying
+  the selected best model.
+* The scale-invariant positive-definiteness fix now also covers `whiten_fit()`
+  and the standalone `ZCA_cor()` / `PCA_cor()` functions (correlation-based
+  methods check the correlation matrix), and the relative tolerance is a single
+  named constant.
+* The introductory vignette now covers the alignment, Riemannian tangent-space,
+  relative-whitening, shrinkage-target, and online-update features.
+* Refreshed the package description; removed dead internal helpers.
+
 # eegwhiten 0.4.0
 
 ## Correctness

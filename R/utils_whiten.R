@@ -162,17 +162,6 @@
   list(values = values, vectors = vectors, engine = "eigen")
 }
 
-# Covariance from raw data and mean without constructing centered copy
-.cov_from_mean <- function(X, mu) {
-  if (!is.matrix(X) || !is.numeric(X)) stop("X must be a numeric matrix.")
-  if (!is.numeric(mu) || length(mu) != ncol(X)) stop("mu must have length ncol(X).")
-  n <- nrow(X)
-  if (n <= 1L) stop("X must have at least 2 rows.")
-  XtX <- crossprod(X)
-  centered_ss <- XtX - n * tcrossprod(mu)
-  .symmetrize(centered_ss / (n - 1L))
-}
-
 # Validate optional sample weights
 .validate_sample_weight <- function(sample_weight, n, allow_null = TRUE) {
   if (is.null(sample_weight)) {
@@ -483,11 +472,6 @@
   )
 }
 
-# Backward-compatible vector-only spectrum helper
-.component_spectrum <- function(Sigma, method) {
-  .component_spectrum_info(Sigma, method)$values
-}
-
 # Pick minimum k such that cumulative explained variance reaches threshold
 .n_comp_from_threshold <- function(values, var_threshold) {
   if (length(values) == 0L) stop("values must not be empty.")
@@ -658,6 +642,11 @@
   L
 }
 
+# Relative tolerance for the scale-invariant positive-definiteness test: a
+# symmetric matrix is treated as PD when its smallest eigenvalue exceeds
+# .PD_REL_TOL times its largest (i.e. condition number below ~1 / .PD_REL_TOL).
+.PD_REL_TOL <- 1e-14
+
 # Basic check: Sigma must be symmetric; optionally positive-definite
 .check_symmetric_pd <- function(Sigma, tol = 1e-8, require_pd = TRUE, return_eigen = TRUE) {
   if (!is.matrix(Sigma)) stop("Sigma must be a matrix.")
@@ -692,7 +681,7 @@
     # eigenvalue to the largest (a numerical-rank tolerance) rather than to an
     # absolute floor, so a well-conditioned matrix at any magnitude is accepted.
     max_eig <- max(eig)
-    if (!is.finite(max_eig) || max_eig <= 0 || min(eig) <= max_eig * 1e-14) {
+    if (!is.finite(max_eig) || max_eig <= 0 || min(eig) <= max_eig * .PD_REL_TOL) {
       stop(sprintf("Sigma must be positive-definite (min/max eigenvalue = %g / %g). Try using lambda > 0 in whiten_model().", min(eig), max_eig))
     }
   }

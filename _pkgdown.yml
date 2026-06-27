@@ -70,6 +70,7 @@ reference:
   - plot.whiten_model
   - print.summary.whiten_model
   - print.whiten_tune
+  - predict.whiten_tune
   - print.recenter
   - predict.recenter
   - print.relative_whiten

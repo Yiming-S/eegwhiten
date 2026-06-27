@@ -6,7 +6,7 @@
 \alias{eegwhiten-package}
 \title{eegwhiten: Whitening Transforms for EEG Covariance Matrices}
 \description{
-Whitening transforms (PCA, PCA on the correlation matrix, ZCA, ZCA on the correlation matrix, SVD and Cholesky) with a simple fit/transform API for EEG data. Rows are trials/epochs, columns are channels or features. Provides model objects for reusing whitening parameters across datasets, inverse transforms, and basic diagnostics.
+Whitening transforms (PCA, PCA on the correlation matrix, ZCA, ZCA on the correlation matrix, SVD and Cholesky) with a simple fit/transform API for EEG data, where rows are trials/epochs and columns are channels or features. Provides reusable model objects, inverse transforms, covariance shrinkage (Ledoit-Wolf and OAS) and robust covariance estimators, cross-validated hyperparameter tuning, and diagnostics. Also includes cross-session and cross-subject transfer-learning tools (Euclidean alignment and per-domain recentering), Riemannian tangent-space mapping of covariance matrices, and generalized-eigenvalue ("relative") whitening.
 }
 \seealso{
 Useful links:

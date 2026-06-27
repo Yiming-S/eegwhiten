@@ -121,7 +121,7 @@ whiten_model_update <- function(model, X_new, sample_weight = NULL, decay = 1) {
     precomp_eig <- .eigen_spd(S, k = d, method = eig_method, fast = fast)
     eig_shrunk <- precomp_eig$values
     max_eig <- max(eig_shrunk)
-    if (!is.finite(max_eig) || max_eig <= 0 || min(eig_shrunk) <= max_eig * 1e-14) {
+    if (!is.finite(max_eig) || max_eig <= 0 || min(eig_shrunk) <= max_eig * .PD_REL_TOL) {
       stop(sprintf("Updated covariance must be positive-definite (min/max eigenvalue = %g / %g). Increase lambda.", min(eig_shrunk), max_eig))
     }
   } else {
@@ -741,6 +741,23 @@ print.whiten_tune <- function(x, ...) {
     print(x$ranking[seq_len(n_show), , drop = FALSE], row.names = FALSE)
   }
   invisible(x)
+}
+
+#' Apply the best tuned whitening model to new data
+#'
+#' Convenience method that whitens \code{newdata} with the best model selected
+#' by \code{\link{auto_tune_whitening}}, so a tuning result can be used directly
+#' as a transformer without extracting \code{$best_model}.
+#'
+#' @param object A \code{whiten_tune} object from \code{\link{auto_tune_whitening}}.
+#' @param newdata Numeric matrix to whiten.
+#' @param ... Passed to \code{\link{predict.whiten_model}} (e.g. \code{self_center}).
+#' @return Whitened data matrix.
+#' @export
+#' @method predict whiten_tune
+predict.whiten_tune <- function(object, newdata, ...) {
+  if (!inherits(object, "whiten_tune")) stop("object must be a 'whiten_tune' object.")
+  stats::predict(object$best_model, newdata, ...)
 }
 
 #' One-Click Whitening Report

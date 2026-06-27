@@ -456,3 +456,24 @@ test_that("deprecated argument order and names still work with a warning", {
   Za <- predict(ea$model, X)
   expect_warning(inverse_ea(Za, ea$model), "deprecated")
 })
+
+# ---- cleanup: predict.whiten_tune, cor-method scale-invariance ----
+
+test_that("predict.whiten_tune delegates to the best model", {
+  X <- make_structured(120, 6, seed = 60)
+  tuned <- auto_tune_whitening(X, methods = c("PCA", "ZCA"), n_comp_grid = c(3),
+                               lambda_grid = list(0, 0.1), cv_folds = 3, seed = 1)
+  expect_equal(predict(tuned, X), predict(tuned$best_model, X), tolerance = 1e-12)
+})
+
+test_that("cor-method PD check is scale-invariant in whiten_fit and standalone", {
+  # Heterogeneous channel scales: covariance is ill-conditioned but the
+  # correlation matrix is well-conditioned, so cor-methods must succeed.
+  set.seed(61)
+  Xs <- matrix(rnorm(300 * 4), 300, 4) %*% diag(c(1e-6, 1, 1e3, 1e6))
+  S <- cov(Xs)
+  expect_silent(whiten_fit(S, method = "ZCA-cor"))
+  expect_silent(whiten_fit(S, method = "PCA-cor", n_comp = 3))
+  expect_silent(ZCA_cor(S, returnW = TRUE, PhiPsi = FALSE))
+  expect_silent(PCA_cor(S, returnW = TRUE, PhiPsi = FALSE))
+})

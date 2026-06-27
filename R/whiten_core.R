@@ -72,8 +72,11 @@ whiten_fit <- function(Sigma,
     stop("Specify only one of n_comp or var_threshold.")
   }
   
-  # All implemented methods expect symmetric PD covariance
-  eig <- .check_symmetric_pd(Sigma, require_pd = TRUE)
+  # All implemented methods expect symmetric PD covariance. For correlation-based
+  # methods, check positive-definiteness on the (scale-invariant) correlation
+  # matrix so heterogeneous channel scales are not falsely rejected.
+  S_pd_check <- if (method %in% c("PCA-cor", "ZCA-cor")) stats::cov2cor(Sigma) else Sigma
+  eig <- .check_symmetric_pd(S_pd_check, require_pd = TRUE)
   d <- ncol(Sigma)
   cond_num <- max(eig) / min(eig)
   if (lambda == 0 && is.finite(cond_num) && cond_num > 1e8) {
@@ -357,7 +360,7 @@ whiten_model <- function(X, center = TRUE,
     # eigenvalue) so well-conditioned data at any magnitude (e.g. EEG in volts)
     # is not falsely rejected.
     max_eig <- max(eig_shrunk)
-    if (!is.finite(max_eig) || max_eig <= 0 || min(eig_shrunk) <= max_eig * 1e-14) {
+    if (!is.finite(max_eig) || max_eig <= 0 || min(eig_shrunk) <= max_eig * .PD_REL_TOL) {
       stop(sprintf("Sample covariance must be positive-definite (min/max eigenvalue = %g / %g). Try lambda='auto' or lambda > 0.", min(eig_shrunk), max_eig))
     }
     cond_raw <- max_eig / min(pmax(eig_shrunk, .Machine$double.eps))

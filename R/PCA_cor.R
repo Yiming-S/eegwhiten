@@ -47,7 +47,9 @@ PCA_cor <- function(Sigma,
                     eig_method = c("auto", "base", "rspectra"),
                     fast = FALSE) {
   if (!isTRUE(attr(Sigma, ".checked_spd"))) {
-    .check_symmetric_pd(Sigma, require_pd = TRUE)
+    # Positive-definiteness of the correlation matrix is verified below via its
+    # eigenvalues, so only require symmetry/finiteness of the covariance here.
+    .check_symmetric_pd(Sigma, require_pd = FALSE)
   }
   eig_method <- match.arg(eig_method)
   if (!is.logical(fast) || length(fast) != 1L || is.na(fast)) {

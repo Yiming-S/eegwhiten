@@ -12,72 +12,59 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+set.seed(42)
 ```
 
 ## Overview
 
-`eegwhiten` provides whitening transforms for EEG and multichannel signal data.
-It supports six methods (PCA, PCA-cor, ZCA, ZCA-cor, SVD, Cholesky) with a
-model-based API: fit once on training data, then apply to new data.
+`eegwhiten` provides covariance whitening and covariance-based transfer-learning
+tools for EEG and other multichannel signals. The core is a model-based
+fit/transform workflow:
 
-## Quick Start
+- **Rows** are trials/epochs/samples; **columns** are channels/features.
+- Fit once on training data, then apply to new data.
+- Six whitening methods, covariance shrinkage, robust estimators, dimensionality
+  reduction, and cross-validated tuning.
+
+On top of whitening it adds the pieces needed for cross-session / cross-subject
+work: **Euclidean alignment** and **per-domain recentering**, **Riemannian
+tangent-space** mapping, and **generalized-eigenvalue ("relative") whitening**.
+
+```{r library}
+library(eegwhiten)
+```
+
+## Quick start: fit, transform, invert
 
 ```{r quick-start}
-library(eegwhiten)
-set.seed(42)
-
-# Simulate EEG data: 300 trials x 16 channels
 X_train <- matrix(rnorm(300 * 16), 300, 16)
 X_test  <- matrix(rnorm(120 * 16), 120, 16)
 colnames(X_train) <- paste0("Ch", 1:16)
 colnames(X_test)  <- colnames(X_train)
 
-# Fit a whitening model on training data
-m <- whiten_model(
-  X_train,
-  method       = "PCA",
-  var_threshold = 0.95,
-  lambda       = "auto"
-)
+m <- whiten_model(X_train, method = "PCA", var_threshold = 0.95, lambda = "auto")
 print(m)
 
-# Apply to test data
 Z_test <- predict(m, X_test)
 dim(Z_test)
+
+# Inverse transform (note: model-first argument order)
+X_rec <- unwhiten(m, Z_test)
+dim(X_rec)
 ```
 
 ## Diagnostics
 
-After whitening, the covariance of the transformed data should be close to
-the identity matrix. Use `check_whitening()` to verify:
+After whitening, `cov(Z)` should be close to the identity. `check_whitening()`
+reports several measures, including a bounded `whiteness` score in `[0, 1]`.
 
 ```{r diagnostics}
-d <- check_whitening(Z_test)
-d$diag_mean       # should be close to 1
-d$offdiag_frob    # should be close to 0
+d <- check_whitening(predict(m, X_train))
+c(diag_mean = d$diag_mean, offdiag_frob = d$offdiag_frob,
+  whiteness = d$whiteness, logdet = d$logdet)
 ```
 
-## Inverse Transform
-
-Recover an approximation of the original data from whitened data:
-
-```{r inverse}
-X_rec <- unwhiten(Z_test, m)
-dim(X_rec)
-```
-
-For full-rank methods (no dimensionality reduction), the reconstruction is exact.
-
-## One-Shot Whitening
-
-For simple workflows where you don't need the model object:
-
-```{r one-shot}
-res <- whiten_matrix(X_train, method = "ZCA", lambda = 0.1)
-str(res$Z)
-```
-
-## Whitening Methods
+## Whitening methods
 
 | Method    | Description                          | Dim. reduction |
 |-----------|--------------------------------------|:--------------:|
@@ -88,90 +75,154 @@ str(res$Z)
 | ZCA-cor   | ZCA on correlation                   | No             |
 | Cholesky  | Cholesky factorization               | No             |
 
-## Regularization
+## Regularization and shrinkage targets
 
-Covariance shrinkage toward a scaled identity target prevents
-ill-conditioning:
-- `lambda = 0`: no shrinkage
-- `lambda = "auto"`: automatic selection via OAS or Ledoit-Wolf
-- `lambda` between 0 and 1: manual shrinkage
+Covariance shrinkage stabilizes whitening for high-dimensional / low-sample
+data. `lambda = "auto"` chooses the intensity with OAS or Ledoit-Wolf. The
+target is a scaled identity by default, or `"diagonal"` to shrink correlations
+toward zero while preserving each channel's variance.
 
-```{r regularization}
-m_reg <- whiten_model(X_train, method = "PCA", lambda = 0.2)
-m_auto <- whiten_model(X_train, method = "PCA", lambda = "auto",
-                       lambda_method = "oas")
+```{r shrinkage}
+m_auto <- whiten_model(X_train, method = "ZCA", lambda = "auto", lambda_method = "oas")
 m_auto$lambda
+
+m_diag <- whiten_model(X_train, method = "ZCA", lambda = 0.3, shrink_target = "diagonal")
+m_diag$shrink_target
 ```
 
-## Batch Whitening
+Robust covariance estimators (`"tyler"`, and `"mcd"` with **robustbase**) are
+available via `cov_estimator`.
 
-Process multiple sessions or subjects at once:
+## Spatial filters and patterns
 
-```{r batch}
-X_list <- list(
-  matrix(rnorm(200 * 8), 200, 8),
-  matrix(rnorm(180 * 8), 180, 8)
-)
+The whitening filters (rows of `W`) and the corresponding forward patterns are
+both available. Patterns -- not raw filter weights -- are the right object to
+interpret as scalp topographies (Haufe et al., 2014).
 
-# Shared model from first matrix
-out <- whiten_batch(X_list, mode = "shared_model",
-                    method = "PCA", n_comp = 4, lambda = 0.1)
-length(out)
+```{r patterns}
+fp <- whitening_patterns(whiten_model(X_train, method = "PCA", n_comp = 4))
+dim(fp$filters)   # components x channels
+dim(fp$patterns)  # channels x components
 ```
 
-## Euclidean Alignment
+## Hyperparameter tuning
 
-Align multiple sessions to a global reference covariance:
-
-```{r ea}
-ea <- euclidean_alignment(X_list, input = "raw",
-                          mean_method = "logeuclid")
-str(ea$aligned, max.level = 1)
-```
-
-## Incremental Updates
-
-Update a model with new data without refitting from scratch:
-
-```{r update}
-X_new <- matrix(rnorm(80 * 16), 80, 16)
-m_updated <- whiten_model_update(m, X_new)
-m_updated$n_obs
-```
-
-## Hyperparameter Tuning
-
-Automatically select the best method and parameters via cross-validation:
+`auto_tune_whitening()` cross-validates over methods and parameters and returns
+a tuned object you can predict with directly.
 
 ```{r tuning}
 tuned <- auto_tune_whitening(
-  X_train,
-  methods      = c("PCA", "ZCA"),
-  n_comp_grid  = c(8, 12),
-  lambda_grid  = list("auto", 0.1),
-  cv_folds     = 3,
-  seed         = 123,
-  top_n        = 4
+  X_train, methods = c("PCA", "ZCA"),
+  n_comp_grid = c(8, 12), lambda_grid = list("auto", 0.1),
+  cv_folds = 3, seed = 123, top_n = 4
 )
-head(tuned$ranking)
+print(tuned)
+
+Z <- predict(tuned, X_test)   # uses the best model
+dim(Z)
 ```
 
-## Tensor Data
+## Cross-session / cross-subject transfer
 
-Handle 3D EEG tensors (trials x channels x time):
+Independent per-matrix whitening removes the very between-session covariance
+structure transfer learning needs. `eegwhiten` offers alignment instead.
 
-```{r tensor}
-X_tensor <- array(rnorm(20 * 8 * 50), dim = c(20, 8, 50))
+**Per-domain recentering** (`recenter()`) aligns each session by its *own*
+covariance, mapping every domain to the identity -- the Euclidean Alignment idea
+of He and Wu (2019):
+
+```{r recenter}
+X_list <- list(
+  matrix(rnorm(200 * 8), 200, 8),
+  matrix(rnorm(180 * 8), 180, 8) %*% diag(1:8)  # a shifted session
+)
+
+out <- whiten_batch(X_list, mode = "recenter")
+round(diag(cov(out[[2]]$Z)), 3)   # each domain -> identity
+```
+
+**Euclidean alignment** (`euclidean_alignment()`) instead builds one shared
+transform from a grand-mean covariance:
+
+```{r ea}
+ea <- euclidean_alignment(X_list, input = "raw", mean_method = "logeuclid")
+str(ea$aligned, max.level = 1)
+```
+
+At predict time, `self_center = TRUE` centers test data on its own mean, which
+helps when the test session has drifted relative to training:
+
+```{r self-center}
+m_tr <- whiten_model(X_list[[1]], method = "ZCA", lambda = 0.1)
+Z_drift <- predict(m_tr, X_list[[2]], self_center = TRUE)
+dim(Z_drift)
+```
+
+## Riemannian tangent space
+
+The standard Riemannian BCI pipeline projects per-trial covariance matrices to
+the tangent space at a reference mean and vectorizes them, so ordinary linear
+classifiers can be used. `epoch_covariances()` builds the covariances from a
+trial tensor; `tangent_space()` maps them.
+
+```{r tangent}
+X_tensor <- array(rnorm(40 * 8 * 128), dim = c(40, 8, 128))
+covs <- epoch_covariances(X_tensor, lambda = 0.05)
+V <- tangent_space(covs, mean_method = "riemann")
+dim(V)                       # 40 trials x p(p+1)/2 features
+
+covs_rec <- untangent_space(V)   # inverse map
+max(abs(covs_rec[[1]] - covs[[1]]))
+```
+
+## Relative / generalized-eigenvalue whitening
+
+`whiten_relative()` whitens one covariance by a reference covariance and
+diagonalizes the target -- the building block of CSP and xDAWN. The returned
+`values` are the per-component variance ratios.
+
+```{r relative}
+Sigma_signal <- cov(matrix(rnorm(200 * 6), 200, 6) %*% diag(c(4, 3, 2, 1, 1, 1)))
+Sigma_noise  <- cov(matrix(rnorm(200 * 6), 200, 6))
+gr <- whiten_relative(Sigma_signal, reference = Sigma_noise, n_comp = 3)
+round(gr$values, 3)
+```
+
+## Online updates with forgetting
+
+`whiten_model_update()` refreshes a model from summary moments. A `decay < 1`
+down-weights past data to track non-stationary drift in streaming settings.
+
+```{r update}
+X_new <- matrix(rnorm(80 * 16), 80, 16)
+m2 <- whiten_model_update(m, X_new, decay = 0.9)
+m2$n_obs
+```
+
+## Tensor data
+
+3D EEG tensors (trials x channels x time) are handled directly.
+
+```{r tensor-whiten}
 m_t <- whiten_model_tensor(X_tensor, method = "ZCA", lambda = 0)
-Z_tensor <- predict_tensor(m_t, X_tensor)
-dim(Z_tensor)
+Z_t <- predict_tensor(m_t, X_tensor)
+dim(Z_t)
+X_t_rec <- unwhiten_tensor(m_t, Z_t)
+dim(X_t_rec)
 ```
 
 ## Reporting
 
-Generate a markdown report:
-
 ```{r report}
 txt <- report_whitening(m, data = X_train, file = NULL)
-cat(substr(txt, 1, 300), "...\n")
+cat(substr(txt, 1, 280), "...\n")
 ```
+
+## References
+
+- He, H., and Wu, D. (2019). Transfer learning for brain-computer interfaces:
+  A Euclidean space data alignment approach. *IEEE TBME*.
+- Barachant, A., et al. (2012). Multiclass brain-computer interface
+  classification by Riemannian geometry. *IEEE TBME*.
+- Haufe, S., et al. (2014). On the interpretation of weight vectors of linear
+  models in multivariate neuroimaging. *NeuroImage*.
