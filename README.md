@@ -32,6 +32,27 @@ Whitening transforms for EEG and multichannel signals using a model-based API.
 - Automatic hyperparameter tuning with an analytic fast path: `auto_tune_whitening()`
 - One-click markdown report: `report_whitening()`
 
+## At a glance
+
+Whitening maps the covariance to the identity (shown on held-out data), and the
+six methods achieve it with visibly different transforms:
+
+![Whitening before and after](man/figures/01-before-after.png)
+
+![Six whitening transforms](man/figures/02-methods-W.png)
+
+For cross-session / cross-subject data, per-domain recentering pulls the
+sessions together in the Riemannian tangent space:
+
+![Tangent-space embedding](man/figures/06-tangent-embedding.png)
+
+Shrinkage and robust covariance estimators keep whitening stable when the
+sample is small or contaminated:
+
+![Covariance estimators](man/figures/08-estimators.png)
+
+All figures are reproducible with `Rscript tools/make-figures.R`.
+
 ## Installation
 
 ```r

@@ -10,9 +10,21 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 3.4,
+  dpi = 110
 )
 set.seed(42)
+
+# small helper: heatmap of a matrix with a diverging palette
+heat <- function(M, main, zlim = c(-1, 1)) {
+  d <- ncol(M)
+  pal <- grDevices::colorRampPalette(c("#2166AC", "#F7F7F7", "#B2182B"))(64)
+  graphics::image(seq_len(d), seq_len(d), t(M[d:1, , drop = FALSE]),
+                  zlim = zlim, col = pal, axes = FALSE, xlab = "", ylab = "", main = main)
+  graphics::box(col = "grey70")
+}
 ```
 
 ## Overview
@@ -62,6 +74,14 @@ reports several measures, including a bounded `whiteness` score in `[0, 1]`.
 d <- check_whitening(predict(m, X_train))
 c(diag_mean = d$diag_mean, offdiag_frob = d$offdiag_frob,
   whiteness = d$whiteness, logdet = d$logdet)
+```
+
+Visually, the strong off-diagonal correlation structure of the input is removed:
+
+```{r vis-before-after, fig.height = 3.2}
+par(mfrow = c(1, 2), mar = c(1, 1, 2.5, 1))
+heat(cor(X_test), "before: cor(X)")
+heat(cov(predict(m, X_test)), "after: cov(Z)")
 ```
 
 ## Whitening methods
@@ -139,6 +159,25 @@ X_list <- list(
 
 out <- whiten_batch(X_list, mode = "recenter")
 round(diag(cov(out[[2]]$Z)), 3)   # each domain -> identity
+```
+
+Across several drifting sessions, recentering collapses the between-session
+Riemannian distances toward zero:
+
+```{r vis-align, fig.height = 3.4, fig.width = 6}
+sessions <- lapply(1:6, function(s) {
+  S <- crossprod(matrix(rnorm(64), 8, 8)) + diag(8)
+  matrix(rnorm(200 * 8), 200, 8) %*% chol(S * runif(1, 0.5, 2))
+})
+pair_d <- function(cl) {
+  d <- c(); k <- length(cl)
+  for (i in 1:(k - 1)) for (j in (i + 1):k) d <- c(d, riemann_distance(cl[[i]], cl[[j]]))
+  d
+}
+raw <- pair_d(lapply(sessions, cov))
+rc  <- pair_d(lapply(whiten_batch(sessions, mode = "recenter"), function(o) cov(o$Z)))
+boxplot(list(raw = raw, recentered = rc), ylab = "pairwise Riemannian distance",
+        col = c("#FDDBC7", "#2166AC"), main = "between-session distance")
 ```
 
 **Euclidean alignment** (`euclidean_alignment()`) instead builds one shared

@@ -1,3 +1,10 @@
+# eegwhiten 0.5.2
+
+* Added a gallery of demonstration figures to the README and pkgdown site
+  (whitening before/after, the six transforms, tangent-space alignment, and
+  covariance-estimator comparisons), plus live illustrations in the vignette.
+  All figures are reproducible with `tools/make-figures.R`.
+
 # eegwhiten 0.5.1
 
 ## Bug fixes

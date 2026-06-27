@@ -5,6 +5,6 @@ bibentry(
   title   = "{eegwhiten}: Whitening Transforms for EEG Covariance Matrices",
   author  = person("Yiming", "Shen"),
   year    = "2026",
-  note    = "R package version 0.5.1",
+  note    = "R package version 0.5.2",
   url     = "https://github.com/Yiming-S/eegwhiten"
 )
