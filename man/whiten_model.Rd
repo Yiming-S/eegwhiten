@@ -74,8 +74,10 @@ sign orientation in \code{"PCA"}, \code{"PCA-cor"}, and \code{"SVD"}.}
 \item{shrink_target}{Covariance shrinkage target; one of \code{"identity"}
 (shrink toward a scaled identity \code{(tr(S)/d) I}, the default) or
 \code{"diagonal"} (shrink correlations toward zero while preserving the
-per-channel variances \code{diag(S)}). \code{lambda = "auto"} requires
-\code{"identity"}.}
+per-channel variances \code{diag(S)}). \code{lambda = "auto"} works with
+both: it uses Ledoit-Wolf / OAS for the identity target and the
+scale-invariant Schaefer-Strimmer intensity for the diagonal target
+(\code{lambda_method} is then ignored).}
 
 \item{na_action}{How to handle non-finite values in \code{X}; one of
 \code{"error"} (default) or \code{"omit"} (drop offending rows/trials with

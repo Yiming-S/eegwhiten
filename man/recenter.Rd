@@ -60,6 +60,7 @@ Engineering.
   \code{mode = "recenter"}.
 
 Other alignment: 
+\code{\link{barycenter_whitener}()},
 \code{\link{euclidean_alignment}()},
 \code{\link{whiten_relative}()}
 }

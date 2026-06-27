@@ -732,6 +732,28 @@
   min(max(lambda, 0), 1)
 }
 
+# Schaefer-Strimmer (2005) analytic shrinkage intensity toward the diagonal
+# target (shrink correlations toward zero, preserve variances). Computed on the
+# correlation scale, so it is scale-invariant -- the right companion to
+# shrink_target = "diagonal". Xc is centered (not standardized) data.
+.lambda_ss <- function(Xc) {
+  n <- nrow(Xc)
+  p <- ncol(Xc)
+  if (n <= 2L || p <= 1L) return(0)
+  sds <- sqrt(colSums(Xc ^ 2) / (n - 1L))
+  if (any(sds <= .Machine$double.eps)) return(1)
+  W <- sweep(Xc, 2L, sds, "/")              # standardized variables
+  R <- crossprod(W) / (n - 1L)              # sample correlation matrix
+  wbar <- R * ((n - 1L) / n)
+  sum_m2 <- crossprod(W ^ 2)                # sum_k (w_ik w_jk)^2
+  var_r <- (n / (n - 1L) ^ 3) * (sum_m2 - n * wbar ^ 2)
+  off <- row(R) != col(R)
+  num <- sum(var_r[off])
+  den <- sum((R ^ 2)[off])
+  if (!is.finite(den) || den <= .Machine$double.eps) return(1)
+  min(max(num / den, 0), 1)
+}
+
 # OAS shrinkage intensity toward scaled identity
 .lambda_oas <- function(Xc) {
   if (!is.matrix(Xc)) stop("Xc must be a matrix.")

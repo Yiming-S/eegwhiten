@@ -175,6 +175,27 @@ covs_rec <- untangent_space(V)   # inverse map
 max(abs(covs_rec[[1]] - covs[[1]]))
 ```
 
+### Riemannian distances, means, and barycenter whitening
+
+The geometry primitives behind alignment are available directly. `spd_mean()`
+computes the geometric (Riemannian), log-Euclidean, or arithmetic mean of a set
+of covariances; `riemann_distance()` gives the affine-invariant distance; and
+`barycenter_whitener()` fits a whitener that maps the geometric mean of a set of
+covariances to the identity.
+
+```{r riemann}
+M <- spd_mean(covs, metric = "riemann")
+riemann_distance(covs[[1]], M)
+
+bw <- barycenter_whitener(covs, metric = "riemann")
+Z_bw <- predict(bw, matrix(rnorm(100 * 8), 100, 8))
+dim(Z_bw)
+```
+
+`lambda = "auto"` also works with `shrink_target = "diagonal"` (a scale-invariant
+Schaefer-Strimmer intensity), and with `"auto"` inside `epoch_covariances()` for
+per-epoch shrinkage.
+
 ## Relative / generalized-eigenvalue whitening
 
 `whiten_relative()` whitens one covariance by a reference covariance and

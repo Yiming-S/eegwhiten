@@ -54,6 +54,7 @@ reference:
   - recenter
   - predict.ea_model
   - inverse_ea
+  - barycenter_whitener
   - whiten_relative
 
 - title: Riemannian geometry
@@ -62,6 +63,8 @@ reference:
   - epoch_covariances
   - tangent_space
   - untangent_space
+  - riemann_distance
+  - spd_mean
 
 - title: S3 methods
   contents:

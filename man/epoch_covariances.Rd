@@ -9,12 +9,14 @@ epoch_covariances(X_tensor, lambda = 0, center = TRUE, shrinkage = NULL)
 \arguments{
 \item{X_tensor}{Numeric 3D array \code{[n_trials, n_channels, n_time]}.}
 
-\item{lambda}{Numeric in \code{[0, 1]}; optional shrinkage of each
-covariance toward a scaled identity (\code{(1 - lambda) C + lambda (tr(C)/p) I}).
-Useful when the number of time samples is small relative to the number of
-channels. Defaults to 0 (no shrinkage). When \code{n_time <= n_channels},
-covariances are rank-deficient (not positive-definite) unless
-\code{lambda > 0}; a warning is emitted in that case.}
+\item{lambda}{Numeric in \code{[0, 1]} or the string \code{"auto"}; optional
+shrinkage of each covariance toward a scaled identity
+(\code{(1 - lambda) C + lambda (tr(C)/p) I}). \code{"auto"} selects a
+per-epoch Ledoit-Wolf intensity from that epoch's time samples. Useful when
+the number of time samples is small relative to the number of channels.
+Defaults to 0 (no shrinkage). When \code{n_time <= n_channels}, covariances
+are rank-deficient (not positive-definite) unless \code{lambda > 0}; a
+warning is emitted in that case.}
 
 \item{center}{Logical; whether to subtract each channel's mean over time
 before computing the covariance.}
@@ -44,6 +46,8 @@ length(covs)
 \code{\link{tangent_space}}, \code{\link{recenter}}
 
 Other riemannian: 
+\code{\link{riemann_distance}()},
+\code{\link{spd_mean}()},
 \code{\link{tangent_space}()},
 \code{\link{untangent_space}()}
 }

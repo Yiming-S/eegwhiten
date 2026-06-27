@@ -68,6 +68,7 @@ Engineering.
   \code{\link{whiten_batch}} with \code{mode = "ea"}.
 
 Other alignment: 
+\code{\link{barycenter_whitener}()},
 \code{\link{recenter}()},
 \code{\link{whiten_relative}()}
 }

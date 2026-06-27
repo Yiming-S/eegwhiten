@@ -5,3 +5,5 @@
 *.Rcheck/
 *.tar.gz
 inst/doc
+tests/testthat/_problems/
+testthat-problems.rds

@@ -50,12 +50,11 @@ test_that("diagonal shrink_target preserves variances, identity does not", {
   expect_identical(m_dg$shrink_target, "diagonal")
 })
 
-test_that("lambda='auto' is rejected with diagonal target", {
+test_that("lambda='auto' is accepted with the diagonal target", {
   X <- make_structured(100, 5, seed = 5)
-  expect_error(
-    whiten_model(X, method = "PCA", lambda = "auto", shrink_target = "diagonal"),
-    "identity"
-  )
+  m <- whiten_model(X, method = "PCA", lambda = "auto", shrink_target = "diagonal")
+  expect_true(m$lambda >= 0 && m$lambda <= 1)
+  expect_identical(m$shrink_target, "diagonal")
 })
 
 # ---- na_action ----
@@ -476,4 +475,72 @@ test_that("cor-method PD check is scale-invariant in whiten_fit and standalone",
   expect_silent(whiten_fit(S, method = "PCA-cor", n_comp = 3))
   expect_silent(ZCA_cor(S, returnW = TRUE, PhiPsi = FALSE))
   expect_silent(PCA_cor(S, returnW = TRUE, PhiPsi = FALSE))
+})
+
+# ---- cheap high-leverage additions: diagonal auto, epoch auto, riemann primitives ----
+
+test_that("lambda='auto' works with the diagonal target (Schaefer-Strimmer)", {
+  set.seed(70)
+  X <- matrix(rnorm(150 * 6), 150, 6) %*% chol(toeplitz(0.5^(0:5)))
+  X <- X %*% diag(c(1e-2, 1, 10, 1, 5, 1))   # heterogeneous scales
+  m <- whiten_model(X, method = "ZCA", lambda = "auto", shrink_target = "diagonal")
+  expect_true(m$lambda >= 0 && m$lambda <= 1)
+  # diagonal target preserves the per-channel variances
+  expect_equal(diag(m$cov), diag(cov(scale(X, scale = FALSE))),
+               tolerance = 1e-8, ignore_attr = TRUE)
+  # the chosen intensity matches the standalone estimator
+  Xc <- scale(X, scale = FALSE)
+  expect_equal(m$lambda, eegwhiten:::.lambda_ss(Xc), tolerance = 1e-10)
+})
+
+test_that("epoch_covariances(lambda='auto') yields SPD per-epoch covariances", {
+  set.seed(71)
+  Xt <- array(rnorm(12 * 8 * 20), dim = c(12, 8, 20))  # n_time ~ n_channels
+  covs <- epoch_covariances(Xt, lambda = "auto")
+  expect_length(covs, 12)
+  expect_true(all(vapply(covs, function(C) min(eigen(C, only.values = TRUE)$values) > 0, logical(1))))
+})
+
+test_that("riemann_distance has metric properties", {
+  set.seed(72)
+  A <- cov(matrix(rnorm(300 * 5), 300, 5))
+  B <- cov(matrix(rnorm(300 * 5), 300, 5))
+  C <- cov(matrix(rnorm(300 * 5), 300, 5))
+  expect_equal(riemann_distance(A, A), 0, tolerance = 1e-8)
+  expect_gt(riemann_distance(A, B), 0)
+  expect_equal(riemann_distance(A, B), riemann_distance(B, A), tolerance = 1e-10)
+  # triangle inequality
+  expect_lte(riemann_distance(A, C), riemann_distance(A, B) + riemann_distance(B, C) + 1e-8)
+  # affine invariance: d(A,B) == d(GAG', GBG')
+  G <- matrix(rnorm(25), 5, 5)
+  expect_equal(riemann_distance(A, B),
+               riemann_distance(G %*% A %*% t(G), G %*% B %*% t(G)), tolerance = 1e-6)
+  # euclid metric equals Frobenius distance
+  expect_equal(riemann_distance(A, B, metric = "euclid"), norm(A - B, "F"), tolerance = 1e-10)
+})
+
+test_that("spd_mean: euclid is arithmetic; riemann is the Karcher centroid", {
+  set.seed(73)
+  covs <- lapply(1:6, function(i) cov(matrix(rnorm(200 * 4), 200, 4)))
+  expect_equal(spd_mean(covs, "euclid"), Reduce(`+`, covs) / 6, tolerance = 1e-10)
+  M <- spd_mean(covs, "riemann")
+  expect_true(min(eigen(M, only.values = TRUE)$values) > 0)
+  # Karcher mean: sum of tangent log-maps at M is ~ 0
+  Mi <- eegwhiten:::.invsqrtm_spd(M)
+  S <- Reduce(`+`, lapply(covs, function(C) eegwhiten:::.logm_spd(Mi %*% C %*% Mi)))
+  expect_lt(norm(S, "F"), 1e-4)
+})
+
+test_that("barycenter_whitener maps the barycenter to identity and inverts", {
+  set.seed(74)
+  Xt <- array(rnorm(25 * 5 * 200), dim = c(25, 5, 200))
+  covs <- epoch_covariances(Xt, lambda = 0.02)
+  bw <- barycenter_whitener(covs, metric = "logeuclid")
+  expect_s3_class(bw, "ea_model")
+  # W M W' == I, i.e. the barycenter is whitened to identity
+  expect_equal(bw$W %*% bw$reference_cov %*% t(bw$W), diag(5), tolerance = 1e-8, ignore_attr = TRUE)
+  Xnew <- matrix(rnorm(80 * 5), 80, 5)
+  Z <- predict(bw, Xnew)
+  expect_equal(dim(Z), c(80, 5))
+  expect_equal(inverse_ea(bw, Z), Xnew, tolerance = 1e-8, ignore_attr = TRUE)
 })

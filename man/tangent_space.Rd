@@ -67,6 +67,8 @@ Transactions on Biomedical Engineering.
 
 Other riemannian: 
 \code{\link{epoch_covariances}()},
+\code{\link{riemann_distance}()},
+\code{\link{spd_mean}()},
 \code{\link{untangent_space}()}
 }
 \concept{riemannian}

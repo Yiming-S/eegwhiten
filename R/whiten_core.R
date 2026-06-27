@@ -167,8 +167,10 @@ whiten_fit <- function(Sigma,
 #' @param shrink_target Covariance shrinkage target; one of \code{"identity"}
 #'   (shrink toward a scaled identity \code{(tr(S)/d) I}, the default) or
 #'   \code{"diagonal"} (shrink correlations toward zero while preserving the
-#'   per-channel variances \code{diag(S)}). \code{lambda = "auto"} requires
-#'   \code{"identity"}.
+#'   per-channel variances \code{diag(S)}). \code{lambda = "auto"} works with
+#'   both: it uses Ledoit-Wolf / OAS for the identity target and the
+#'   scale-invariant Schaefer-Strimmer intensity for the diagonal target
+#'   (\code{lambda_method} is then ignored).
 #' @param na_action How to handle non-finite values in \code{X}; one of
 #'   \code{"error"} (default) or \code{"omit"} (drop offending rows/trials with
 #'   a warning).
@@ -277,9 +279,6 @@ whiten_model <- function(X, center = TRUE,
   if (lambda_auto && cov_estimator != "empirical") {
     stop("lambda='auto' is only supported with cov_estimator='empirical'.")
   }
-  if (lambda_auto && shrink_target != "identity") {
-    stop("lambda='auto' is only supported with shrink_target='identity'. Set a numeric lambda for the diagonal target.")
-  }
 
   # Validation for n_comp
   if (!is.null(n_comp)) {
@@ -341,7 +340,14 @@ whiten_model <- function(X, center = TRUE,
   S <- cov_fit$cov
   if (lambda_auto) {
     Xc <- if (center) .center_cols(X, mu) else X
-    lambda <- if (lambda_method == "oas") .lambda_oas(Xc) else .lambda_lw(Xc)
+    lambda <- if (shrink_target == "diagonal") {
+      # Scale-invariant Schaefer-Strimmer intensity for the diagonal target.
+      .lambda_ss(Xc)
+    } else if (lambda_method == "oas") {
+      .lambda_oas(Xc)
+    } else {
+      .lambda_lw(Xc)
+    }
   }
 
   # Apply shrinkage toward the chosen target.

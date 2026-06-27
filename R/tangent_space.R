@@ -47,12 +47,14 @@
 #' recentering.
 #'
 #' @param X_tensor Numeric 3D array \code{[n_trials, n_channels, n_time]}.
-#' @param lambda Numeric in \code{[0, 1]}; optional shrinkage of each
-#'   covariance toward a scaled identity (\code{(1 - lambda) C + lambda (tr(C)/p) I}).
-#'   Useful when the number of time samples is small relative to the number of
-#'   channels. Defaults to 0 (no shrinkage). When \code{n_time <= n_channels},
-#'   covariances are rank-deficient (not positive-definite) unless
-#'   \code{lambda > 0}; a warning is emitted in that case.
+#' @param lambda Numeric in \code{[0, 1]} or the string \code{"auto"}; optional
+#'   shrinkage of each covariance toward a scaled identity
+#'   (\code{(1 - lambda) C + lambda (tr(C)/p) I}). \code{"auto"} selects a
+#'   per-epoch Ledoit-Wolf intensity from that epoch's time samples. Useful when
+#'   the number of time samples is small relative to the number of channels.
+#'   Defaults to 0 (no shrinkage). When \code{n_time <= n_channels}, covariances
+#'   are rank-deficient (not positive-definite) unless \code{lambda > 0}; a
+#'   warning is emitted in that case.
 #' @param center Logical; whether to subtract each channel's mean over time
 #'   before computing the covariance.
 #' @param shrinkage Deprecated; use \code{lambda}.
@@ -83,7 +85,8 @@ epoch_covariances <- function(X_tensor, lambda = 0, center = TRUE, shrinkage = N
   if (!is.numeric(X_tensor) || any(!is.finite(X_tensor))) {
     stop("X_tensor must contain only finite numeric values.")
   }
-  .check_unit_interval(lambda, "lambda")
+  .check_unit_interval(lambda, "lambda", allow_char_auto = TRUE)
+  lambda_auto <- is.character(lambda)
   if (!is.logical(center) || length(center) != 1L || is.na(center)) {
     stop("center must be TRUE or FALSE.")
   }
@@ -93,17 +96,19 @@ epoch_covariances <- function(X_tensor, lambda = 0, center = TRUE, shrinkage = N
   n_channels <- dims[2]
   n_time <- dims[3]
   if (n_time < 2L) stop("Each trial must have at least 2 time samples.")
-  if (lambda == 0 && n_time <= n_channels) {
-    warning("n_time <= n_channels with lambda = 0: per-epoch covariances are rank-deficient (not positive-definite). Set lambda > 0 for a stable tangent-space mapping.")
+  if (!lambda_auto && lambda == 0 && n_time <= n_channels) {
+    warning("n_time <= n_channels with lambda = 0: per-epoch covariances are rank-deficient (not positive-definite). Set lambda > 0 (or \"auto\") for a stable tangent-space mapping.")
   }
 
   lapply(seq_len(n_trials), function(i) {
     # Trial slice is [n_channels x n_time].
-    Xi <- matrix(X_tensor[i, , ], nrow = dims[2], ncol = dims[3])
+    Xi <- matrix(X_tensor[i, , ], nrow = n_channels, ncol = n_time)
     if (center) Xi <- Xi - rowMeans(Xi)
-    C <- tcrossprod(Xi) / (n_time - 1L)
-    C <- .symmetrize(C)
-    if (lambda > 0) C <- .shrink_cov(C, lambda, target = "identity")
+    C <- .symmetrize(tcrossprod(Xi) / (n_time - 1L))
+    # "auto" picks a per-epoch Ledoit-Wolf intensity from the time samples
+    # (observations) of this epoch (channels as features).
+    lam <- if (lambda_auto) .lambda_lw(t(Xi)) else lambda
+    if (lam > 0) C <- .shrink_cov(C, lam, target = "identity")
     C
   })
 }
