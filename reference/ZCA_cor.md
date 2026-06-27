@@ -43,8 +43,8 @@ ZCA_cor(
 
 - fast:
 
-  Logical; if `TRUE`, use relaxed checks and faster iterative
-  eigensolver settings when available.
+  Logical; if `TRUE`, use faster iterative eigensolver settings when
+  available.
 
 ## Value
 
