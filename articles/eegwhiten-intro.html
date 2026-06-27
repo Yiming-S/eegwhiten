@@ -242,9 +242,9 @@ parameters and returns a tuned object you can predict with directly.</p>
 <span><span class="co">#&gt;   top 4 configurations:</span></span>
 <span><span class="co">#&gt;  method n_comp var_threshold lambda cov_estimator mean_score  sd_score</span></span>
 <span><span class="co">#&gt;     PCA      8            NA    0.1     empirical -0.8503463 0.1056367</span></span>
-<span><span class="co">#&gt;     PCA      8            NA   auto     empirical -0.9261697 0.2005509</span></span>
 <span><span class="co">#&gt;     PCA     12            NA    0.1     empirical -1.1336164 0.2216557</span></span>
-<span><span class="co">#&gt;     PCA     NA            NA   auto     empirical -1.6602069 0.3187931</span></span>
+<span><span class="co">#&gt;     PCA      8            NA   auto     empirical -1.1809458 0.6216179</span></span>
+<span><span class="co">#&gt;     PCA     12            NA   auto     empirical -1.4801419 0.6928170</span></span>
 <span><span class="co">#&gt;  n_success</span></span>
 <span><span class="co">#&gt;          3</span></span>
 <span><span class="co">#&gt;          3</span></span>
@@ -325,7 +325,7 @@ tensor; <code><a href="../reference/tangent_space.html">tangent_space()</a></cod
 <span></span>
 <span><span class="va">covs_rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/untangent_space.html">untangent_space</a></span><span class="op">(</span><span class="va">V</span><span class="op">)</span>   <span class="co"># inverse map</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">covs_rec</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span> <span class="op">-</span> <span class="va">covs</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 3.774758e-15</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 3.330669e-15</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="riemannian-distances-means-and-barycenter-whitening">Riemannian distances, means, and barycenter whitening<a class="anchor" aria-label="anchor" href="#riemannian-distances-means-and-barycenter-whitening"></a>
 </h3>
@@ -397,7 +397,7 @@ non-stationary drift in streaming settings.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="va">txt</span>, <span class="fl">1</span>, <span class="fl">280</span><span class="op">)</span>, <span class="st">"...\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # Whitening Report</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; - Generated at: 2026-06-27 22:47:50 UTC</span></span>
+<span><span class="co">#&gt; - Generated at: 2026-06-27 23:50:57 UTC</span></span>
 <span><span class="co">#&gt; - Method: PCA</span></span>
 <span><span class="co">#&gt; - Dimensions: 16 -&gt; 16</span></span>
 <span><span class="co">#&gt; - n_comp: 16</span></span>

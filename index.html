@@ -60,6 +60,24 @@
 <p>Whitening transforms for EEG and multichannel signals using a model-based API.</p>
 <p><code>eegwhiten</code> provides covariance whitening methods with a train/apply workflow: - Rows: trials/epochs/samples - Columns: channels/features - Fit once on training data, then reuse on validation/test data - Optional inverse transform, diagnostics, tuning, and reporting</p>
 <div class="section level2">
+<h2 id="why-whiten-in-plain-terms">Why whiten? (in plain terms)<a class="anchor" aria-label="anchor" href="#why-whiten-in-plain-terms"></a>
+</h2>
+<p>Electrodes that sit near each other pick up a lot of the same signal, so EEG channels are usually heavily correlated, and a few channels carry far more variance than the rest. Feed that raw data into a distance-based method, a clustering step, ICA, or many classifiers, and those few loud, redundant channels quietly take over. “Distance” ends up meaning something different in every direction.</p>
+<p>Whitening is a single linear transform that fixes both problems at once. It rescales every direction to the same variance and removes the correlation between channels. Picture the data as a stretched, tilted cloud of points; whitening turns it into a round ball of unit size, where every direction counts equally and the channels no longer track each other. In numbers, the covariance becomes the identity matrix (that is the before-and-after picture in the gallery below).</p>
+<p>Why that helps:</p>
+<ul>
+<li>
+<strong>Distances and linear models stop being skewed.</strong> Whitening is the same operation as switching from plain Euclidean distance to Mahalanobis distance, which accounts for scale and correlation. Nearest-centroid, k-means, k-NN, and linear classifiers all behave better on whitened features.</li>
+<li>
+<strong>It is the standard first step for ICA, CSP, and Riemannian pipelines,</strong> which assume equal-variance, decorrelated inputs.</li>
+<li>
+<strong>It helps models carry over between sessions and subjects.</strong> Every recording has its own electrode contact, noise, and montage, which shows up as a differently shaped covariance. Whitening each recording onto a common footing removes much of that nuisance difference, so a model trained today still works on tomorrow’s session (the alignment figure below shows this).</li>
+<li>
+<strong>It keeps the numbers stable.</strong> Decorrelated, equal-scale features are easier for the linear algebra and the optimizers that come next.</li>
+</ul>
+<p>Put simply: whitening clears away the redundant structure (scale and correlation) so the patterns you actually care about, and whatever you run next, get a fair and stable start.</p>
+</div>
+<div class="section level2">
 <h2 id="features">Features<a class="anchor" aria-label="anchor" href="#features"></a>
 </h2>
 <ul>

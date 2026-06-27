@@ -158,9 +158,9 @@ print(tuned)
 #>   top 4 configurations:
 #>  method n_comp var_threshold lambda cov_estimator mean_score  sd_score
 #>     PCA      8            NA    0.1     empirical -0.8503463 0.1056367
-#>     PCA      8            NA   auto     empirical -0.9261697 0.2005509
 #>     PCA     12            NA    0.1     empirical -1.1336164 0.2216557
-#>     PCA     NA            NA   auto     empirical -1.6602069 0.3187931
+#>     PCA      8            NA   auto     empirical -1.1809458 0.6216179
+#>     PCA     12            NA   auto     empirical -1.4801419 0.6928170
 #>  n_success
 #>          3
 #>          3
@@ -261,7 +261,7 @@ dim(V)                       # 40 trials x p(p+1)/2 features
 
 covs_rec <- untangent_space(V)   # inverse map
 max(abs(covs_rec[[1]] - covs[[1]]))
-#> [1] 3.774758e-15
+#> [1] 3.330669e-15
 ```
 
 ### Riemannian distances, means, and barycenter whitening
@@ -346,7 +346,7 @@ txt <- report_whitening(m, data = X_train, file = NULL)
 cat(substr(txt, 1, 280), "...\n")
 #> # Whitening Report
 #> 
-#> - Generated at: 2026-06-27 22:47:50 UTC
+#> - Generated at: 2026-06-27 23:50:57 UTC
 #> - Method: PCA
 #> - Dimensions: 16 -> 16
 #> - n_comp: 16

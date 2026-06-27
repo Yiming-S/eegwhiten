@@ -8,6 +8,45 @@ workflow: - Rows: trials/epochs/samples - Columns: channels/features -
 Fit once on training data, then reuse on validation/test data - Optional
 inverse transform, diagnostics, tuning, and reporting
 
+## Why whiten? (in plain terms)
+
+Electrodes that sit near each other pick up a lot of the same signal, so
+EEG channels are usually heavily correlated, and a few channels carry
+far more variance than the rest. Feed that raw data into a
+distance-based method, a clustering step, ICA, or many classifiers, and
+those few loud, redundant channels quietly take over. “Distance” ends up
+meaning something different in every direction.
+
+Whitening is a single linear transform that fixes both problems at once.
+It rescales every direction to the same variance and removes the
+correlation between channels. Picture the data as a stretched, tilted
+cloud of points; whitening turns it into a round ball of unit size,
+where every direction counts equally and the channels no longer track
+each other. In numbers, the covariance becomes the identity matrix (that
+is the before-and-after picture in the gallery below).
+
+Why that helps:
+
+- **Distances and linear models stop being skewed.** Whitening is the
+  same operation as switching from plain Euclidean distance to
+  Mahalanobis distance, which accounts for scale and correlation.
+  Nearest-centroid, k-means, k-NN, and linear classifiers all behave
+  better on whitened features.
+- **It is the standard first step for ICA, CSP, and Riemannian
+  pipelines,** which assume equal-variance, decorrelated inputs.
+- **It helps models carry over between sessions and subjects.** Every
+  recording has its own electrode contact, noise, and montage, which
+  shows up as a differently shaped covariance. Whitening each recording
+  onto a common footing removes much of that nuisance difference, so a
+  model trained today still works on tomorrow’s session (the alignment
+  figure below shows this).
+- **It keeps the numbers stable.** Decorrelated, equal-scale features
+  are easier for the linear algebra and the optimizers that come next.
+
+Put simply: whitening clears away the redundant structure (scale and
+correlation) so the patterns you actually care about, and whatever you
+run next, get a fair and stable start.
+
 ## Features
 
 - Multiple whitening methods: `PCA`, `PCA-cor`, `ZCA`, `ZCA-cor`, `SVD`,
