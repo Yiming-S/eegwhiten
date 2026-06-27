@@ -74,6 +74,18 @@ c(diag_mean = d$diag_mean, offdiag_frob = d$offdiag_frob,
 #>    1.0000000    0.8378828    0.7824632   -0.3792011
 ```
 
+Visually, the strong off-diagonal correlation structure of the input is
+removed:
+
+``` r
+
+par(mfrow = c(1, 2), mar = c(1, 1, 2.5, 1))
+heat(cor(X_test), "before: cor(X)")
+heat(cov(predict(m, X_test)), "after: cov(Z)")
+```
+
+![](eegwhiten-intro_files/figure-html/vis-before-after-1.png)
+
 ## Whitening methods
 
 | Method   | Description                          | Dim. reduction |
@@ -146,9 +158,9 @@ print(tuned)
 #>   top 4 configurations:
 #>  method n_comp var_threshold lambda cov_estimator mean_score  sd_score
 #>     PCA      8            NA    0.1     empirical -0.8503463 0.1056367
+#>     PCA      8            NA   auto     empirical -0.9261697 0.2005509
 #>     PCA     12            NA    0.1     empirical -1.1336164 0.2216557
-#>     PCA      8            NA   auto     empirical -1.1809458 0.6216179
-#>     PCA     12            NA   auto     empirical -1.4801419 0.6928170
+#>     PCA     NA            NA   auto     empirical -1.6602069 0.3187931
 #>  n_success
 #>          3
 #>          3
@@ -182,6 +194,28 @@ out <- whiten_batch(X_list, mode = "recenter")
 round(diag(cov(out[[2]]$Z)), 3)   # each domain -> identity
 #> [1] 1 1 1 1 1 1 1 1
 ```
+
+Across several drifting sessions, recentering collapses the
+between-session Riemannian distances toward zero:
+
+``` r
+
+sessions <- lapply(1:6, function(s) {
+  S <- crossprod(matrix(rnorm(64), 8, 8)) + diag(8)
+  matrix(rnorm(200 * 8), 200, 8) %*% chol(S * runif(1, 0.5, 2))
+})
+pair_d <- function(cl) {
+  d <- c(); k <- length(cl)
+  for (i in 1:(k - 1)) for (j in (i + 1):k) d <- c(d, riemann_distance(cl[[i]], cl[[j]]))
+  d
+}
+raw <- pair_d(lapply(sessions, cov))
+rc  <- pair_d(lapply(whiten_batch(sessions, mode = "recenter"), function(o) cov(o$Z)))
+boxplot(list(raw = raw, recentered = rc), ylab = "pairwise Riemannian distance",
+        col = c("#FDDBC7", "#2166AC"), main = "between-session distance")
+```
+
+![](eegwhiten-intro_files/figure-html/vis-align-1.png)
 
 **Euclidean alignment**
 ([`euclidean_alignment()`](https://yiming-s.github.io/eegwhiten/reference/euclidean_alignment.md))
@@ -227,7 +261,7 @@ dim(V)                       # 40 trials x p(p+1)/2 features
 
 covs_rec <- untangent_space(V)   # inverse map
 max(abs(covs_rec[[1]] - covs[[1]]))
-#> [1] 7.105427e-15
+#> [1] 3.774758e-15
 ```
 
 ### Riemannian distances, means, and barycenter whitening
@@ -246,7 +280,7 @@ the identity.
 
 M <- spd_mean(covs, metric = "riemann")
 riemann_distance(covs[[1]], M)
-#> [1] 0.8729882
+#> [1] 0.7281765
 
 bw <- barycenter_whitener(covs, metric = "riemann")
 Z_bw <- predict(bw, matrix(rnorm(100 * 8), 100, 8))
@@ -272,7 +306,7 @@ Sigma_signal <- cov(matrix(rnorm(200 * 6), 200, 6) %*% diag(c(4, 3, 2, 1, 1, 1))
 Sigma_noise  <- cov(matrix(rnorm(200 * 6), 200, 6))
 gr <- whiten_relative(Sigma_signal, reference = Sigma_noise, n_comp = 3)
 round(gr$values, 3)
-#> [1] 19.766 10.533  3.873
+#> [1] 16.613 12.002  3.587
 ```
 
 ## Online updates with forgetting
@@ -312,7 +346,7 @@ txt <- report_whitening(m, data = X_train, file = NULL)
 cat(substr(txt, 1, 280), "...\n")
 #> # Whitening Report
 #> 
-#> - Generated at: 2026-06-27 22:12:30 UTC
+#> - Generated at: 2026-06-27 22:47:50 UTC
 #> - Method: PCA
 #> - Dimensions: 16 -> 16
 #> - n_comp: 16

@@ -46,5 +46,5 @@ m <- whiten_model(X, method = "ZCA", lambda = 0)
 Z <- predict(m, X)
 X_rec <- unwhiten(m, Z)
 max(abs(X_rec - X))
-#> [1] 1.887379e-14
+#> [1] 1.687539e-14
 ```

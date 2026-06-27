@@ -41,6 +41,35 @@ inverse transform, diagnostics, tuning, and reporting
 - One-click markdown report:
   [`report_whitening()`](https://yiming-s.github.io/eegwhiten/reference/report_whitening.md)
 
+## At a glance
+
+Whitening maps the covariance to the identity (shown on held-out data),
+and the six methods achieve it with visibly different transforms:
+
+![Whitening before and after](reference/figures/01-before-after.png)
+
+Whitening before and after
+
+![Six whitening transforms](reference/figures/02-methods-W.png)
+
+Six whitening transforms
+
+For cross-session / cross-subject data, per-domain recentering pulls the
+sessions together in the Riemannian tangent space:
+
+![Tangent-space embedding](reference/figures/06-tangent-embedding.png)
+
+Tangent-space embedding
+
+Shrinkage and robust covariance estimators keep whitening stable when
+the sample is small or contaminated:
+
+![Covariance estimators](reference/figures/08-estimators.png)
+
+Covariance estimators
+
+All figures are reproducible with `Rscript tools/make-figures.R`.
+
 ## Installation
 
 ``` r

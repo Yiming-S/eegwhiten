@@ -46,5 +46,5 @@ covs <- epoch_covariances(X)
 V <- tangent_space(covs, mean_method = "logeuclid")
 covs_rec <- untangent_space(V)
 max(abs(covs_rec[[1]] - covs[[1]]))
-#> [1] 1.998401e-15
+#> [1] 1.776357e-15
 ```

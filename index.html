@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">eegwhiten</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -89,6 +89,26 @@
 <li>One-click markdown report: <code><a href="reference/report_whitening.html">report_whitening()</a></code>
 </li>
 </ul>
+</div>
+<div class="section level2">
+<h2 id="at-a-glance">At a glance<a class="anchor" aria-label="anchor" href="#at-a-glance"></a>
+</h2>
+<p>Whitening maps the covariance to the identity (shown on held-out data), and the six methods achieve it with visibly different transforms:</p>
+<div class="float">
+<img src="reference/figures/01-before-after.png" alt="Whitening before and after"><div class="figcaption">Whitening before and after</div>
+</div>
+<div class="float">
+<img src="reference/figures/02-methods-W.png" alt="Six whitening transforms"><div class="figcaption">Six whitening transforms</div>
+</div>
+<p>For cross-session / cross-subject data, per-domain recentering pulls the sessions together in the Riemannian tangent space:</p>
+<div class="float">
+<img src="reference/figures/06-tangent-embedding.png" alt="Tangent-space embedding"><div class="figcaption">Tangent-space embedding</div>
+</div>
+<p>Shrinkage and robust covariance estimators keep whitening stable when the sample is small or contaminated:</p>
+<div class="float">
+<img src="reference/figures/08-estimators.png" alt="Covariance estimators"><div class="figcaption">Covariance estimators</div>
+</div>
+<p>All figures are reproducible with <code>Rscript tools/make-figures.R</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
