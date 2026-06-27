@@ -8,7 +8,7 @@ workflow: - Rows: trials/epochs/samples - Columns: channels/features -
 Fit once on training data, then reuse on validation/test data - Optional
 inverse transform, diagnostics, tuning, and reporting
 
-## Why whiten? (in plain terms)
+## Why whiten?
 
 Electrodes that sit near each other pick up a lot of the same signal, so
 EEG channels are usually heavily correlated, and a few channels carry

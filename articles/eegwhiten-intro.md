@@ -346,7 +346,7 @@ txt <- report_whitening(m, data = X_train, file = NULL)
 cat(substr(txt, 1, 280), "...\n")
 #> # Whitening Report
 #> 
-#> - Generated at: 2026-06-27 23:50:57 UTC
+#> - Generated at: 2026-06-27 23:51:10 UTC
 #> - Method: PCA
 #> - Dimensions: 16 -> 16
 #> - n_comp: 16
