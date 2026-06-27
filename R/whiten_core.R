@@ -338,6 +338,9 @@ whiten_model <- function(X, center = TRUE,
 
   # 2. Optional shrinkage
   S <- cov_fit$cov
+  # Estimator actually used for lambda='auto' (the diagonal target ignores
+  # lambda_method and uses Schaefer-Strimmer); reported in the model metadata.
+  lambda_method_used <- if (shrink_target == "diagonal") "ss" else lambda_method
   if (lambda_auto) {
     Xc <- if (center) .center_cols(X, mu) else X
     lambda <- if (shrink_target == "diagonal") {
@@ -452,7 +455,7 @@ whiten_model <- function(X, center = TRUE,
       explained_var = explained_var,
       lambda = lambda,
       lambda_input = if (lambda_auto) "auto" else as.character(lambda),
-      lambda_method = if (lambda_auto) lambda_method else NA_character_,
+      lambda_method = if (lambda_auto) lambda_method_used else NA_character_,
       shrink_target = shrink_target,
       eig_method = eig_method,
       fast = fast,

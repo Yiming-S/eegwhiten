@@ -40,6 +40,9 @@ A list with:
   \item{W}{Global alignment matrix \code{C_ref^{-1/2}}.}
   \item{reference_cov}{Reference covariance matrix \code{C_ref}.}
   \item{covariances}{Covariances used to estimate \code{C_ref}.}
+  \item{centers}{List of per-matrix centering vectors actually subtracted
+    (column means when \code{center = TRUE}, zeros otherwise; \code{NULL}
+    entries for covariance input).}
   \item{input_type}{Resolved input type (\code{"raw"} or \code{"cov"}).}
   \item{mean_method}{Mean method used.}
   \item{model}{Alignment model object (class \code{"ea_model"}).}

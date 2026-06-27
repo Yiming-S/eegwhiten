@@ -544,3 +544,32 @@ test_that("barycenter_whitener maps the barycenter to identity and inverts", {
   expect_equal(dim(Z), c(80, 5))
   expect_equal(inverse_ea(bw, Z), Xnew, tolerance = 1e-8, ignore_attr = TRUE)
 })
+
+# ---- bug-hunt regressions ----
+
+test_that("lambda_method label reflects the estimator actually used", {
+  X <- make_structured(120, 5, seed = 80)
+  m_diag <- whiten_model(X, method = "ZCA", lambda = "auto", shrink_target = "diagonal",
+                         lambda_method = "oas")
+  expect_identical(m_diag$lambda_method, "ss")               # not the ignored 'oas'
+  expect_equal(m_diag$lambda, eegwhiten:::.lambda_ss(scale(X, scale = FALSE)),
+               tolerance = 1e-10)
+  m_id <- whiten_model(X, method = "ZCA", lambda = "auto", lambda_method = "lw")
+  expect_identical(m_id$lambda_method, "lw")                 # identity target keeps the choice
+})
+
+test_that("whiten_batch(mode='ea') reports the centering vector actually used", {
+  set.seed(81)
+  X1 <- matrix(rnorm(200 * 5, mean = 3), 200, 5)
+  X2 <- matrix(rnorm(150 * 5, mean = -2), 150, 5)
+  o <- whiten_batch(list(X1, X2), mode = "ea", center = TRUE)
+  expect_equal(o[[1]]$center, colMeans(X1), tolerance = 1e-10)
+  expect_equal(o[[2]]$center, colMeans(X2), tolerance = 1e-10)
+  # reconstruction using the reported (Z, W, center) recovers the data
+  rec <- o[[1]]$Z %*% solve(o[[1]]$W) +
+    matrix(o[[1]]$center, nrow(o[[1]]$Z), 5, byrow = TRUE)
+  expect_lt(max(abs(rec - X1)), 1e-8)
+  # center = FALSE still reports zeros; covariance input reports NULL
+  expect_true(all(whiten_batch(list(X1), mode = "ea", center = FALSE)[[1]]$center == 0))
+  expect_null(whiten_batch(list(cov(X1)), mode = "ea", ea_input = "cov")[[1]]$center)
+})

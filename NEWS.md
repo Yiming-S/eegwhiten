@@ -1,3 +1,16 @@
+# eegwhiten 0.5.1
+
+## Bug fixes
+
+* `whiten_batch(mode = "ea", center = TRUE)` now reports the per-matrix
+  centering vector actually subtracted (the column means) instead of a zero
+  vector, so reconstructing from `(Z, W, center)` recovers the original data.
+  `euclidean_alignment()` now returns these vectors in a `centers` list.
+* A model fitted with `lambda = "auto"` and `shrink_target = "diagonal"` now
+  reports `lambda_method = "ss"` (Schaefer-Strimmer, the estimator actually
+  used) instead of the ignored `"oas"`/`"lw"` input, in the object and in
+  `print()` / `summary()`.
+
 # eegwhiten 0.5.0
 
 ## New features

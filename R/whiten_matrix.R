@@ -349,11 +349,12 @@ whiten_batch <- function(X_list, center = TRUE,
       max_iter = ea_max_iter
     )
     
-    out <- apply_list(ea$aligned, function(Z) {
+    out <- apply_list(seq_along(ea$aligned), function(i) {
+      Z <- ea$aligned[[i]]
       list(
         Z = Z,
         W = ea$W,
-        center = if (ea$input_type == "raw") rep(0, ncol(Z)) else NULL,
+        center = if (ea$input_type == "raw") ea$centers[[i]] else NULL,
         method = "EA",
         n_comp = NULL,
         var_threshold = NULL,

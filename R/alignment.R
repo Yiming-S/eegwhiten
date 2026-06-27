@@ -26,6 +26,9 @@
 #'   \item{W}{Global alignment matrix \code{C_ref^{-1/2}}.}
 #'   \item{reference_cov}{Reference covariance matrix \code{C_ref}.}
 #'   \item{covariances}{Covariances used to estimate \code{C_ref}.}
+#'   \item{centers}{List of per-matrix centering vectors actually subtracted
+#'     (column means when \code{center = TRUE}, zeros otherwise; \code{NULL}
+#'     entries for covariance input).}
 #'   \item{input_type}{Resolved input type (\code{"raw"} or \code{"cov"}).}
 #'   \item{mean_method}{Mean method used.}
 #'   \item{model}{Alignment model object (class \code{"ea_model"}).}
@@ -115,11 +118,19 @@ euclidean_alignment <- function(X_list,
   # Global alignment matrix
   W_ref <- .invsqrtm_spd(C_ref, eps = eps)
 
+  # Per-matrix centering vectors actually used (zeros when not centering, or
+  # NULL for covariance input); returned so callers can report/invert correctly.
+  centers <- if (input_type == "raw") {
+    lapply(X_list, function(x) if (center) colMeans(x) else rep(0, ncol(x)))
+  } else {
+    vector("list", length(covariances))
+  }
+
   aligned <- if (input_type == "raw") {
-    lapply(X_list, function(x) {
-      x_use <- if (center) sweep(x, 2, colMeans(x), "-") else x
+    Map(function(x, mu) {
+      x_use <- if (center) .center_cols(x, mu) else x
       x_use %*% W_ref
-    })
+    }, X_list, centers)
   } else {
     lapply(covariances, function(C) t(W_ref) %*% C %*% W_ref)
   }
@@ -143,6 +154,7 @@ euclidean_alignment <- function(X_list,
     W = W_ref,
     reference_cov = C_ref,
     covariances = covariances,
+    centers = centers,
     input_type = input_type,
     mean_method = mean_method,
     model = model

@@ -1,7 +1,7 @@
 Package: eegwhiten
 Type: Package
 Title: Whitening Transforms for EEG Covariance Matrices
-Version: 0.5.0
+Version: 0.5.1
 Authors@R: person("Yiming", "Shen", email = "yiming.shen001@umb.edu",
     role = c("aut", "cre"))
 Description:
