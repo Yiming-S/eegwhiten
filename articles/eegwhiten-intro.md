@@ -84,7 +84,9 @@ heat(cor(X_test), "before: cor(X)")
 heat(cov(predict(m, X_test)), "after: cov(Z)")
 ```
 
-![](eegwhiten-intro_files/figure-html/vis-before-after-1.png)
+![Side-by-side heatmaps showing strong input correlation before
+whitening and an approximately diagonal covariance matrix after
+whitening.](eegwhiten-intro_files/figure-html/vis-before-after-1.png)
 
 ## Whitening methods
 
@@ -215,7 +217,9 @@ boxplot(list(raw = raw, recentered = rc), ylab = "pairwise Riemannian distance",
         col = c("#FDDBC7", "#2166AC"), main = "between-session distance")
 ```
 
-![](eegwhiten-intro_files/figure-html/vis-align-1.png)
+![Boxplot comparing pairwise Riemannian distances before and after
+recentering, with recentered sessions much closer
+together.](eegwhiten-intro_files/figure-html/vis-align-1.png)
 
 **Euclidean alignment**
 ([`euclidean_alignment()`](https://yiming-s.github.io/eegwhiten/reference/euclidean_alignment.md))
@@ -346,7 +350,7 @@ txt <- report_whitening(m, data = X_train, file = NULL)
 cat(substr(txt, 1, 280), "...\n")
 #> # Whitening Report
 #> 
-#> - Generated at: 2026-06-27 23:51:10 UTC
+#> - Generated at: 2026-06-29 20:11:10 UTC
 #> - Method: PCA
 #> - Dimensions: 16 -> 16
 #> - n_comp: 16

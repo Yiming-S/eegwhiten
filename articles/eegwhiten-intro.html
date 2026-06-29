@@ -141,7 +141,7 @@ is removed:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>, mar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">2.5</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">heat</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">X_test</span><span class="op">)</span>, <span class="st">"before: cor(X)"</span><span class="op">)</span></span>
 <span><span class="fu">heat</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cov</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">X_test</span><span class="op">)</span><span class="op">)</span>, <span class="st">"after: cov(Z)"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="eegwhiten-intro_files/figure-html/vis-before-after-1.png" class="r-plt" alt="" width="770"></p>
+<p><img src="eegwhiten-intro_files/figure-html/vis-before-after-1.png" class="r-plt" alt="Side-by-side heatmaps showing strong input correlation before whitening and an approximately diagonal covariance matrix after whitening." width="770"></p>
 </div>
 <div class="section level2">
 <h2 id="whitening-methods">Whitening methods<a class="anchor" aria-label="anchor" href="#whitening-methods"></a>
@@ -289,7 +289,7 @@ between-session Riemannian distances toward zero:</p>
 <span><span class="va">rc</span>  <span class="op">&lt;-</span> <span class="fu">pair_d</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="../reference/whiten_batch.html">whiten_batch</a></span><span class="op">(</span><span class="va">sessions</span>, mode <span class="op">=</span> <span class="st">"recenter"</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">o</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cov</a></span><span class="op">(</span><span class="va">o</span><span class="op">$</span><span class="va">Z</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/boxplot.html" class="external-link">boxplot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>raw <span class="op">=</span> <span class="va">raw</span>, recentered <span class="op">=</span> <span class="va">rc</span><span class="op">)</span>, ylab <span class="op">=</span> <span class="st">"pairwise Riemannian distance"</span>,</span>
 <span>        col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#FDDBC7"</span>, <span class="st">"#2166AC"</span><span class="op">)</span>, main <span class="op">=</span> <span class="st">"between-session distance"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="eegwhiten-intro_files/figure-html/vis-align-1.png" class="r-plt" alt="" width="660"></p>
+<p><img src="eegwhiten-intro_files/figure-html/vis-align-1.png" class="r-plt" alt="Boxplot comparing pairwise Riemannian distances before and after recentering, with recentered sessions much closer together." width="660"></p>
 <p><strong>Euclidean alignment</strong>
 (<code><a href="../reference/euclidean_alignment.html">euclidean_alignment()</a></code>) instead builds one shared transform
 from a grand-mean covariance:</p>
@@ -397,7 +397,7 @@ non-stationary drift in streaming settings.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substr.html" class="external-link">substr</a></span><span class="op">(</span><span class="va">txt</span>, <span class="fl">1</span>, <span class="fl">280</span><span class="op">)</span>, <span class="st">"...\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # Whitening Report</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; - Generated at: 2026-06-27 23:51:10 UTC</span></span>
+<span><span class="co">#&gt; - Generated at: 2026-06-29 20:11:10 UTC</span></span>
 <span><span class="co">#&gt; - Method: PCA</span></span>
 <span><span class="co">#&gt; - Dimensions: 16 -&gt; 16</span></span>
 <span><span class="co">#&gt; - n_comp: 16</span></span>

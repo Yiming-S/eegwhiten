@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">eegwhiten cover</title>
+  <desc id="desc">Correlated multichannel EEG data is fitted once by a whitening model and transformed into decorrelated unit-variance features for diagnostics and alignment.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#edf4f7"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" x2="1">
+      <stop offset="0%" stop-color="#2166ac"/>
+      <stop offset="100%" stop-color="#67a9cf"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" x2="1">
+      <stop offset="0%" stop-color="#b2182b"/>
+      <stop offset="100%" stop-color="#ef8a62"/>
+    </linearGradient>
+    <filter id="shadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0c2630" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#405f6f"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="520" rx="28" fill="url(#bg)"/>
+  <path d="M0 398 C126 355 242 421 380 378 C548 326 676 259 850 313 C1015 364 1080 274 1200 238 L1200 520 L0 520 Z" fill="#dfecef"/>
+  <path d="M0 90 C130 120 228 58 378 92 C535 128 620 180 785 138 C940 99 1055 88 1200 126" fill="none" stroke="#d7e5ea" stroke-width="18" stroke-linecap="round"/>
+
+  <g transform="translate(66 60)">
+    <text x="0" y="0" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800" fill="#10242c">eegwhiten</text>
+    <text x="1" y="42" font-family="Inter, Arial, sans-serif" font-size="22" fill="#395866">Model-based whitening transforms for EEG and multichannel signals in R</text>
+  </g>
+
+  <g transform="translate(72 170)" filter="url(#shadow)">
+    <rect x="0" y="0" width="246" height="210" rx="18" fill="#ffffff"/>
+    <text x="24" y="40" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="800" fill="#10242c">Correlated input</text>
+    <text x="24" y="68" font-family="Inter, Arial, sans-serif" font-size="14" fill="#546d78">trials x channels</text>
+    <g transform="translate(24 96)">
+      <rect x="0" y="0" width="138" height="82" rx="8" fill="#f7f9fb" stroke="#d5e0e5"/>
+      <g>
+        <rect x="8" y="8" width="18" height="18" fill="#b2182b"/>
+        <rect x="30" y="8" width="18" height="18" fill="#d6604d"/>
+        <rect x="52" y="8" width="18" height="18" fill="#f4a582"/>
+        <rect x="74" y="8" width="18" height="18" fill="#d1e5f0"/>
+        <rect x="96" y="8" width="18" height="18" fill="#92c5de"/>
+        <rect x="118" y="8" width="12" height="18" fill="#4393c3"/>
+        <rect x="8" y="30" width="18" height="18" fill="#d6604d"/>
+        <rect x="30" y="30" width="18" height="18" fill="#b2182b"/>
+        <rect x="52" y="30" width="18" height="18" fill="#d6604d"/>
+        <rect x="74" y="30" width="18" height="18" fill="#fddbc7"/>
+        <rect x="96" y="30" width="18" height="18" fill="#d1e5f0"/>
+        <rect x="118" y="30" width="12" height="18" fill="#92c5de"/>
+        <rect x="8" y="52" width="18" height="18" fill="#92c5de"/>
+        <rect x="30" y="52" width="18" height="18" fill="#d6604d"/>
+        <rect x="52" y="52" width="18" height="18" fill="#b2182b"/>
+        <rect x="74" y="52" width="18" height="18" fill="#f4a582"/>
+        <rect x="96" y="52" width="18" height="18" fill="#d1e5f0"/>
+        <rect x="118" y="52" width="12" height="18" fill="#4393c3"/>
+      </g>
+      <text x="156" y="31" font-family="Inter, Arial, sans-serif" font-size="13" fill="#546d78">scale</text>
+      <text x="156" y="55" font-family="Inter, Arial, sans-serif" font-size="13" fill="#546d78">correlation</text>
+    </g>
+  </g>
+
+  <line x1="344" y1="275" x2="410" y2="275" stroke="#405f6f" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <g transform="translate(435 128)" filter="url(#shadow)">
+    <rect x="0" y="0" width="330" height="286" rx="18" fill="#ffffff"/>
+    <text x="28" y="42" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="800" fill="#10242c">Fit once, reuse</text>
+    <text x="28" y="70" font-family="Inter, Arial, sans-serif" font-size="14" fill="#546d78">train/apply workflow for held-out data</text>
+    <g transform="translate(28 106)">
+      <rect x="0" y="0" width="274" height="42" rx="10" fill="#eaf4fa"/>
+      <text x="17" y="27" font-family="Menlo, Consolas, monospace" font-size="17" fill="#245c7a">m &lt;- whiten_model(X_train)</text>
+    </g>
+    <g transform="translate(28 164)">
+      <rect x="0" y="0" width="274" height="42" rx="10" fill="#fff1eb"/>
+      <text x="17" y="27" font-family="Menlo, Consolas, monospace" font-size="17" fill="#8a3f2b">Z &lt;- predict(m, X_test)</text>
+    </g>
+    <g transform="translate(30 236)" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">
+      <rect x="0" y="-20" width="56" height="28" rx="14" fill="#dcecf7"/>
+      <text x="16" y="-1" fill="#245c7a">PCA</text>
+      <rect x="68" y="-20" width="52" height="28" rx="14" fill="#f7ddd4"/>
+      <text x="83" y="-1" fill="#8a3f2b">ZCA</text>
+      <rect x="132" y="-20" width="52" height="28" rx="14" fill="#e7e2f2"/>
+      <text x="146" y="-1" fill="#5b5085">SVD</text>
+      <rect x="196" y="-20" width="90" height="28" rx="14" fill="#e1eee8"/>
+      <text x="212" y="-1" fill="#316554">Cholesky</text>
+    </g>
+  </g>
+
+  <line x1="790" y1="275" x2="856" y2="275" stroke="#405f6f" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <g transform="translate(884 170)" filter="url(#shadow)">
+    <rect x="0" y="0" width="246" height="210" rx="18" fill="#ffffff"/>
+    <text x="24" y="40" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="800" fill="#10242c">Whitened output</text>
+    <text x="24" y="68" font-family="Inter, Arial, sans-serif" font-size="14" fill="#546d78">cov(Z) approx I</text>
+    <g transform="translate(24 96)">
+      <rect x="0" y="0" width="94" height="82" rx="8" fill="#f7f9fb" stroke="#d5e0e5"/>
+      <g>
+        <rect x="10" y="8" width="16" height="16" fill="#b2182b"/>
+        <rect x="34" y="8" width="16" height="16" fill="#f6eee9"/>
+        <rect x="58" y="8" width="16" height="16" fill="#edf4f7"/>
+        <rect x="10" y="32" width="16" height="16" fill="#edf4f7"/>
+        <rect x="34" y="32" width="16" height="16" fill="#b2182b"/>
+        <rect x="58" y="32" width="16" height="16" fill="#f6eee9"/>
+        <rect x="10" y="56" width="16" height="16" fill="#f6eee9"/>
+        <rect x="34" y="56" width="16" height="16" fill="#edf4f7"/>
+        <rect x="58" y="56" width="16" height="16" fill="#b2182b"/>
+      </g>
+      <text x="116" y="25" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700" fill="#10242c">diagnostics</text>
+      <text x="116" y="49" font-family="Inter, Arial, sans-serif" font-size="13" fill="#546d78">alignment</text>
+      <text x="116" y="73" font-family="Inter, Arial, sans-serif" font-size="13" fill="#546d78">tangent space</text>
+    </g>
+  </g>
+
+  <g transform="translate(72 430)" font-family="Inter, Arial, sans-serif" font-size="15" fill="#395866">
+    <text x="0" y="0">PCA | ZCA | SVD | Cholesky | shrinkage | robust covariance | Euclidean alignment | Riemannian geometry</text>
+  </g>
+</svg>

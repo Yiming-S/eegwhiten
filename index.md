@@ -1,12 +1,72 @@
 # eegwhiten
 
-Whitening transforms for EEG and multichannel signals using a
-model-based API.
+![eegwhiten cover: correlated EEG channels are whitened with a reusable
+model and mapped to decorrelated
+features](reference/figures/eegwhiten-cover.svg)
 
-`eegwhiten` provides covariance whitening methods with a train/apply
-workflow: - Rows: trials/epochs/samples - Columns: channels/features -
-Fit once on training data, then reuse on validation/test data - Optional
-inverse transform, diagnostics, tuning, and reporting
+Whitening transforms for EEG and multichannel signals using a
+model-based API: fit a whitening model once on training data, then apply
+the same transform to validation/test data. Rows are trials, epochs, or
+samples; columns are channels or features.
+
+Core capabilities:
+
+- Reusable whitening models with inverse transforms and diagnostics.
+- Six transforms: `PCA`, `PCA-cor`, `ZCA`, `ZCA-cor`, `SVD`, and
+  `Cholesky`.
+- Shrinkage, robust covariance estimators, dimensionality reduction,
+  tuning, and reporting.
+- Cross-session tools: Euclidean alignment, per-domain recentering,
+  Riemannian tangent-space mapping, and relative/generalized-eigenvalue
+  whitening.
+
+## Installation
+
+``` r
+
+# install.packages("devtools")
+devtools::install_github("Yiming-S/eegwhiten")
+```
+
+For local development:
+
+``` r
+
+# install.packages("pkgload")
+pkgload::load_all(".")
+```
+
+## Quick Start
+
+``` r
+
+library(eegwhiten)
+set.seed(42)
+
+X_train <- matrix(rnorm(300 * 16), 300, 16)
+X_test  <- matrix(rnorm(120 * 16), 120, 16)
+colnames(X_train) <- paste0("Ch", 1:16)
+colnames(X_test)  <- colnames(X_train)
+
+# Fit whitening model on training data
+m <- whiten_model(
+  X_train,
+  method = "PCA",
+  var_threshold = 0.95,
+  lambda = "auto",
+  lambda_method = "oas"
+)
+
+# Apply to new data
+Z_test <- predict(m, X_test)
+
+# Diagnostics
+diag <- check_whitening(Z_test)
+diag$diag_mean
+
+# Inverse transform (approximate if reduced)
+X_test_rec <- unwhiten(m, Z_test)
+```
 
 ## Why whiten?
 
@@ -108,54 +168,6 @@ the sample is small or contaminated:
 Covariance estimators
 
 All figures are reproducible with `Rscript tools/make-figures.R`.
-
-## Installation
-
-``` r
-
-# install.packages("devtools")
-devtools::install_github("Yiming-S/eegwhiten")
-```
-
-For local development:
-
-``` r
-
-# install.packages("pkgload")
-pkgload::load_all(".")
-```
-
-## Quick Start
-
-``` r
-
-library(eegwhiten)
-set.seed(42)
-
-X_train <- matrix(rnorm(300 * 16), 300, 16)
-X_test  <- matrix(rnorm(120 * 16), 120, 16)
-colnames(X_train) <- paste0("Ch", 1:16)
-colnames(X_test)  <- colnames(X_train)
-
-# Fit whitening model on training data
-m <- whiten_model(
-  X_train,
-  method = "PCA",
-  var_threshold = 0.95,
-  lambda = "auto",
-  lambda_method = "oas"
-)
-
-# Apply to new data
-Z_test <- predict(m, X_test)
-
-# Diagnostics
-diag <- check_whitening(Z_test)
-diag$diag_mean
-
-# Inverse transform (approximate if reduced)
-X_test_rec <- unwhiten(m, Z_test)
-```
 
 ## Core APIs
 

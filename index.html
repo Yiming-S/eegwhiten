@@ -55,10 +55,60 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="eegwhiten">eegwhiten<a class="anchor" aria-label="anchor" href="#eegwhiten"></a>
 </h1></div>
+<p align="center">
+<img src="reference/figures/eegwhiten-cover.svg" alt="eegwhiten cover: correlated EEG channels are whitened with a reusable model and mapped to decorrelated features" width="100%"></p>
 <!-- badges: start -->
 
-<p>Whitening transforms for EEG and multichannel signals using a model-based API.</p>
-<p><code>eegwhiten</code> provides covariance whitening methods with a train/apply workflow: - Rows: trials/epochs/samples - Columns: channels/features - Fit once on training data, then reuse on validation/test data - Optional inverse transform, diagnostics, tuning, and reporting</p>
+<p>Whitening transforms for EEG and multichannel signals using a model-based API: fit a whitening model once on training data, then apply the same transform to validation/test data. Rows are trials, epochs, or samples; columns are channels or features.</p>
+<p>Core capabilities:</p>
+<ul>
+<li>Reusable whitening models with inverse transforms and diagnostics.</li>
+<li>Six transforms: <code>PCA</code>, <code>PCA-cor</code>, <code>ZCA</code>, <code>ZCA-cor</code>, <code>SVD</code>, and <code>Cholesky</code>.</li>
+<li>Shrinkage, robust covariance estimators, dimensionality reduction, tuning, and reporting.</li>
+<li>Cross-session tools: Euclidean alignment, per-domain recentering, Riemannian tangent-space mapping, and relative/generalized-eigenvalue whitening.</li>
+</ul>
+<div class="section level2">
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h2>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"Yiming-S/eegwhiten"</span><span class="op">)</span></span></code></pre></div>
+<p>For local development:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("pkgload")</span></span>
+<span><span class="fu">pkgload</span><span class="fu">::</span><span class="fu"><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">load_all</a></span><span class="op">(</span><span class="st">"."</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+</h2>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/Yiming-S/eegwhiten" class="external-link">eegwhiten</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">X_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">300</span> <span class="op">*</span> <span class="fl">16</span><span class="op">)</span>, <span class="fl">300</span>, <span class="fl">16</span><span class="op">)</span></span>
+<span><span class="va">X_test</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">120</span> <span class="op">*</span> <span class="fl">16</span><span class="op">)</span>, <span class="fl">120</span>, <span class="fl">16</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X_train</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Ch"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">16</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X_test</span><span class="op">)</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X_train</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Fit whitening model on training data</span></span>
+<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/whiten_model.html">whiten_model</a></span><span class="op">(</span></span>
+<span>  <span class="va">X_train</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"PCA"</span>,</span>
+<span>  var_threshold <span class="op">=</span> <span class="fl">0.95</span>,</span>
+<span>  lambda <span class="op">=</span> <span class="st">"auto"</span>,</span>
+<span>  lambda_method <span class="op">=</span> <span class="st">"oas"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Apply to new data</span></span>
+<span><span class="va">Z_test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">X_test</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Diagnostics</span></span>
+<span><span class="va">diag</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/check_whitening.html">check_whitening</a></span><span class="op">(</span><span class="va">Z_test</span><span class="op">)</span></span>
+<span><span class="va">diag</span><span class="op">$</span><span class="va">diag_mean</span></span>
+<span></span>
+<span><span class="co"># Inverse transform (approximate if reduced)</span></span>
+<span><span class="va">X_test_rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/unwhiten.html">unwhiten</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">Z_test</span><span class="op">)</span></span></code></pre></div>
+</div>
 <div class="section level2">
 <h2 id="why-whiten">Why whiten?<a class="anchor" aria-label="anchor" href="#why-whiten"></a>
 </h2>
@@ -127,48 +177,6 @@
 <img src="reference/figures/08-estimators.png" alt="Covariance estimators"><div class="figcaption">Covariance estimators</div>
 </div>
 <p>All figures are reproducible with <code>Rscript tools/make-figures.R</code>.</p>
-</div>
-<div class="section level2">
-<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
-</h2>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"Yiming-S/eegwhiten"</span><span class="op">)</span></span></code></pre></div>
-<p>For local development:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("pkgload")</span></span>
-<span><span class="fu">pkgload</span><span class="fu">::</span><span class="fu"><a href="https://pkgload.r-lib.org/reference/load_all.html" class="external-link">load_all</a></span><span class="op">(</span><span class="st">"."</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
-</h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/Yiming-S/eegwhiten" class="external-link">eegwhiten</a></span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">X_train</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">300</span> <span class="op">*</span> <span class="fl">16</span><span class="op">)</span>, <span class="fl">300</span>, <span class="fl">16</span><span class="op">)</span></span>
-<span><span class="va">X_test</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">120</span> <span class="op">*</span> <span class="fl">16</span><span class="op">)</span>, <span class="fl">120</span>, <span class="fl">16</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X_train</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Ch"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">16</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X_test</span><span class="op">)</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">X_train</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Fit whitening model on training data</span></span>
-<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/whiten_model.html">whiten_model</a></span><span class="op">(</span></span>
-<span>  <span class="va">X_train</span>,</span>
-<span>  method <span class="op">=</span> <span class="st">"PCA"</span>,</span>
-<span>  var_threshold <span class="op">=</span> <span class="fl">0.95</span>,</span>
-<span>  lambda <span class="op">=</span> <span class="st">"auto"</span>,</span>
-<span>  lambda_method <span class="op">=</span> <span class="st">"oas"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Apply to new data</span></span>
-<span><span class="va">Z_test</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">X_test</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Diagnostics</span></span>
-<span><span class="va">diag</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/check_whitening.html">check_whitening</a></span><span class="op">(</span><span class="va">Z_test</span><span class="op">)</span></span>
-<span><span class="va">diag</span><span class="op">$</span><span class="va">diag_mean</span></span>
-<span></span>
-<span><span class="co"># Inverse transform (approximate if reduced)</span></span>
-<span><span class="va">X_test_rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/unwhiten.html">unwhiten</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">Z_test</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="core-apis">Core APIs<a class="anchor" aria-label="anchor" href="#core-apis"></a>
