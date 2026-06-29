@@ -78,7 +78,7 @@ c(diag_mean = d$diag_mean, offdiag_frob = d$offdiag_frob,
 
 Visually, the strong off-diagonal correlation structure of the input is removed:
 
-```{r vis-before-after, fig.height = 3.2}
+```{r vis-before-after, fig.height = 3.2, fig.alt = "Side-by-side heatmaps showing strong input correlation before whitening and an approximately diagonal covariance matrix after whitening."}
 par(mfrow = c(1, 2), mar = c(1, 1, 2.5, 1))
 heat(cor(X_test), "before: cor(X)")
 heat(cov(predict(m, X_test)), "after: cov(Z)")
@@ -164,7 +164,7 @@ round(diag(cov(out[[2]]$Z)), 3)   # each domain -> identity
 Across several drifting sessions, recentering collapses the between-session
 Riemannian distances toward zero:
 
-```{r vis-align, fig.height = 3.4, fig.width = 6}
+```{r vis-align, fig.height = 3.4, fig.width = 6, fig.alt = "Boxplot comparing pairwise Riemannian distances before and after recentering, with recentered sessions much closer together."}
 sessions <- lapply(1:6, function(s) {
   S <- crossprod(matrix(rnorm(64), 8, 8)) + diag(8)
   matrix(rnorm(200 * 8), 200, 8) %*% chol(S * runif(1, 0.5, 2))
