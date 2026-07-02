@@ -65,7 +65,7 @@ txt <- report_whitening(m, data = X, file = NULL)
 cat(txt)
 #> # Whitening Report
 #> 
-#> - Generated at: 2026-06-29 20:11:04 UTC
+#> - Generated at: 2026-07-02 04:30:41 UTC
 #> - Method: ZCA
 #> - Dimensions: 6 -> 6
 #> - n_comp: NULL
