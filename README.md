@@ -7,7 +7,7 @@
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/Yiming-S/eegwhiten/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/Yiming-S/eegwhiten/actions/workflows/R-CMD-check.yml)
 [![Codecov test coverage](https://codecov.io/gh/Yiming-S/eegwhiten/graph/badge.svg)](https://app.codecov.io/gh/Yiming-S/eegwhiten)
-[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- badges: end -->
 

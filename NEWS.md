@@ -1,3 +1,13 @@
+# eegwhiten 1.0.0
+
+First stable release. The public API is now considered stable: the six whitening
+transforms, the `whiten_model()` fit/`predict()` workflow (including dimension
+reduction, shrinkage, and robust covariance estimators), the covariance-alignment
+tools (Euclidean alignment, recentering, barycenter whitening), the Riemannian
+tangent-space helpers, and the diagnostics/reporting functions. No breaking
+changes from 0.5.2; this release marks the transition out of the experimental
+lifecycle.
+
 # eegwhiten 0.5.2
 
 * Added a gallery of demonstration figures to the README and pkgdown site
